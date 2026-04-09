@@ -101,3 +101,40 @@ if __name__ == "__main__":
     H_test = build_hamiltonian(mass_center=lambda_val * 1)
     error = np.linalg.norm(H_test - H_test.conj().T)
     print(f"\nErrore hermitiana: {error:.2e} (deve essere \~0)")
+# === GRAFICI AUTOMATICI (per portfolio) ===
+    import matplotlib.pyplot as plt
+
+    # Grafico 1: Scaling dell'energia
+    ns = [1, 10, 50, 100, 500, 1000]
+    Egs_list = []
+    for n in ns:
+        H = build_hamiltonian(mass_center=0.5 * n)
+        eigvals = eigh(H)[0]
+        Egs = np.min(np.abs(eigvals[eigvals > 0]))
+        Egs_list.append(Egs)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(ns, Egs_list, 'o-', linewidth=2, markersize=8, label='E_ground-state')
+    plt.plot(ns, [0.5 * n for n in ns], '--', label='Riferimento lineare E = λ·n (λ=0.5)')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel('Numero combinatorio n_tot')
+    plt.ylabel('Energia ground-state')
+    plt.title('Novae-Graph: Scaling dell’energia (Dirac discreto)')
+    plt.legend()
+    plt.grid(True, which='both')
+    plt.savefig('energy_scaling.png', dpi=200, bbox_inches='tight')
+    print("✅ Salvato: energy_scaling.png")
+
+    # Grafico 2: Spettro autovalori (per n=1)
+    H1 = build_hamiltonian(mass_center=0.5 * 1)
+    eigvals1 = np.sort(eigh(H1)[0])
+    plt.figure(figsize=(8, 5))
+    plt.plot(eigvals1, 'o', markersize=4)
+    plt.axhline(0, color='red', linestyle='--', linewidth=1)
+    plt.title('Spettro completo della Hamiltoniana (n=1) – 52 autovalori')
+    plt.xlabel('Indice autovalore')
+    plt.ylabel('Energia')
+    plt.grid(True)
+    plt.savefig('spectrum_n1.png', dpi=200, bbox_inches='tight')
+    print("✅ Salvato: spectrum_n1.png")
