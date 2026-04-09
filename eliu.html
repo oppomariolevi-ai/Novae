@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Novabene — ⁴He</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#03050f; color:#d0dcff; font-family:'Space Mono',monospace; overflow:hidden; height:100vh; display:flex; flex-direction:column; }
+  header { padding:12px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #111830; background:rgba(3,5,15,0.97); z-index:10; }
+  .title { font-family:'Syne',sans-serif; font-weight:800; font-size:16px; letter-spacing:3px; color:#6aaeff; }
+  .subtitle { font-size:9px; color:#303860; letter-spacing:1px; margin-top:2px; }
+  .stats { display:flex; gap:16px; }
+  .stat { text-align:center; }
+  .stat-val { font-size:18px; font-weight:700; color:#6aaeff; font-family:'Syne',sans-serif; }
+  .stat-label { color:#303860; font-size:9px; letter-spacing:1px; }
+  #canvas { flex:1; display:block; cursor:grab; }
+  #canvas:active { cursor:grabbing; }
+  .legend { position:absolute; bottom:16px; left:20px; font-size:10px; color:#303860; line-height:2.2; background:rgba(3,5,15,0.85); padding:8px 12px; border-radius:8px; }
+  .legend span { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .zoom-btns { position:absolute; bottom:70px; right:20px; display:flex; flex-direction:column; gap:6px; }
+  .zoom-btn { background:rgba(20,30,60,0.95); border:1px solid #1a2848; color:#6aaeff; font-size:18px; width:36px; height:36px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif; font-weight:800; user-select:none; }
+  .zoom-btn:active { background:rgba(40,70,140,0.95); }
+  .controls { position:absolute; bottom:16px; right:20px; font-size:10px; color:#303860; text-align:right; line-height:2; background:rgba(3,5,15,0.85); padding:8px 12px; border-radius:8px; }
+  .info { position:absolute; top:68px; right:20px; background:rgba(3,5,15,0.95); border:1px solid #111830; padding:14px; font-size:10px; line-height:2.2; min-width:205px; border-radius:8px; }
+  .info-title { font-family:'Syne',sans-serif; color:#6aaeff; font-size:11px; letter-spacing:1px; margin-bottom:6px; }
+  .info-row { display:flex; justify-content:space-between; gap:12px; }
+  .info-val { color:#6aaeff; }
+  .einfo { position:absolute; top:68px; left:20px; background:rgba(3,5,15,0.95); border:1px solid #111830; padding:14px; font-size:10px; line-height:2.2; border-radius:8px; min-width:185px; }
+  .e-title { font-family:'Syne',sans-serif; font-size:11px; letter-spacing:1px; margin-bottom:4px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="title">NOVABENE — ⁴He</div>
+    <div class="subtitle">NUCLEO TETRAEDRICO · ORBITALE ICOSAEDRICO · 12×13=156 STATI · PAULI ✓</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-val">4</div><div class="stat-label">TETRAEDRO</div></div>
+    <div class="stat"><div class="stat-val">12</div><div class="stat-label">SFERE ORB.</div></div>
+    <div class="stat"><div class="stat-val">13</div><div class="stat-label">PUNTI/SFERA</div></div>
+    <div class="stat"><div class="stat-val">156</div><div class="stat-label">STATI</div></div>
+  </div>
+</header>
+
+<canvas id="canvas"></canvas>
+
+<div class="legend">
+  <div><span style="background:transparent;border:1px solid rgba(106,174,255,0.4);border-radius:50%;width:11px;height:11px;"></span> Sfera orbitale esterna</div>
+  <div><span style="background:#ff4040"></span> Protone (+1-0) ×2 · 13 punti</div>
+  <div><span style="background:#4488ff"></span> Neutrone (-1+0) ×2 · 13 punti</div>
+  <div><span style="background:#ff9050"></span> e⁻ spin ↑ (+0)</div>
+  <div><span style="background:#dc50ff"></span> e⁻ spin ↓ (-0)</div>
+</div>
+
+<div class="zoom-btns">
+  <div class="zoom-btn" id="zoomIn">+</div>
+  <div class="zoom-btn" id="zoomOut">−</div>
+</div>
+<div class="controls">DRAG — ruota<br>SCROLL/PINCH — zoom</div>
+
+<div class="info">
+  <div class="info-title">STRUTTURA ⁴He</div>
+  <div class="info-row"><span>Nucleo</span><span class="info-val">Tetraedro (4×13 pt)</span></div>
+  <div class="info-row"><span>Protoni</span><span class="info-val">2 × (+1-0)</span></div>
+  <div class="info-row"><span>Neutroni</span><span class="info-val">2 × (-1+0)</span></div>
+  <div class="info-row"><span>Orbitale</span><span class="info-val">12 sfere × 13 pt</span></div>
+  <div class="info-row"><span>Stati totali</span><span class="info-val">156</span></div>
+  <div class="info-row"><span>Pauli</span><span class="info-val" id="paulistat">✓</span></div>
+</div>
+
+<div class="einfo">
+  <div class="e-title" style="color:#ff9050">e⁻ SPIN ↑ (+0)</div>
+  <div id="e1pos" style="color:#ff9050;font-size:10px;font-weight:700;">—</div>
+  <div id="e1state" style="font-size:10px;color:#a06030;margin-top:2px;">—</div>
+  <div class="e-title" style="color:#dc50ff;margin-top:8px;">e⁻ SPIN ↓ (-0)</div>
+  <div id="e2pos" style="color:#dc50ff;font-size:10px;font-weight:700;">—</div>
+  <div id="e2state" style="font-size:10px;color:#9030aa;margin-top:2px;">—</div>
+  <div id="pauli" style="font-size:10px;color:#303860;margin-top:8px;">—</div>
+</div>
+
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=canvas.offsetWidth;H=canvas.height=canvas.offsetHeight;}
+resize();window.addEventListener('resize',resize);
+
+const phi=(1+Math.sqrt(5))/2;
+
+// ── 13 PUNTI: 1 centro + 12 vertici icosaedrici ───────────────
+function makeIco13(scale){
+  const raw=[
+    [0,0,0],
+    [0,1,phi],[0,-1,phi],[0,1,-phi],[0,-1,-phi],
+    [1,phi,0],[-1,phi,0],[1,-phi,0],[-1,-phi,0],
+    [phi,0,1],[-phi,0,1],[phi,0,-1],[-phi,0,-1]
+  ];
+  return raw.map(v=>{
+    if(v[0]===0&&v[1]===0&&v[2]===0) return {x:0,y:0,z:0};
+    const l=Math.sqrt(v[0]**2+v[1]**2+v[2]**2);
+    return {x:v[0]/l*scale,y:v[1]/l*scale,z:v[2]/l*scale};
+  });
+}
+
+function buildAdj13(pts,scale){
+  const edges=[];
+  for(let i=1;i<13;i++) edges.push([0,i]);
+  const thresh=scale*2/phi*2.15;
+  for(let i=1;i<13;i++)
+    for(let j=i+1;j<13;j++){
+      const d=Math.sqrt((pts[i].x-pts[j].x)**2+(pts[i].y-pts[j].y)**2+(pts[i].z-pts[j].z)**2);
+      if(d<thresh) edges.push([i,j]);
+    }
+  return pts.map((_,i)=>edges.filter(e=>e[0]===i||e[1]===i).map(e=>e[0]===i?e[1]:e[0]));
+}
+
+// Sub-punti orbitali
+const R_SUB=0.3;
+const subPts=makeIco13(R_SUB);
+const subAdj=buildAdj13(subPts,R_SUB);
+
+// ── ICOSAEDRO ORBITALE: 12 sfere ──────────────────────────────
+// Raggio leggermente più piccolo di H (carica nucleare +2)
+const R_ORB=0.9;
+const rawVerts=[
+  [0,1,phi],[0,-1,phi],[0,1,-phi],[0,-1,-phi],
+  [1,phi,0],[-1,phi,0],[1,-phi,0],[-1,-phi,0],
+  [phi,0,1],[-phi,0,1],[phi,0,-1],[-phi,0,-1]
+];
+const icoVerts=rawVerts.map(v=>{
+  const l=Math.sqrt(v[0]**2+v[1]**2+v[2]**2);
+  return {x:v[0]/l*R_ORB,y:v[1]/l*R_ORB,z:v[2]/l*R_ORB};
+});
+const edgeLen=R_ORB*2/phi*1.1;
+const icoEdges=[];
+for(let i=0;i<12;i++)
+  for(let j=i+1;j<12;j++){
+    const d=Math.sqrt((icoVerts[i].x-icoVerts[j].x)**2+(icoVerts[i].y-icoVerts[j].y)**2+(icoVerts[i].z-icoVerts[j].z)**2);
+    if(d<edgeLen) icoEdges.push([i,j]);
+  }
+const orbAdj=icoVerts.map((_,i)=>icoEdges.filter(e=>e[0]===i||e[1]===i).map(e=>e[0]===i?e[1]:e[0]));
+
+// ── TETRAEDRO: 4 nucleoni ──────────────────────────────────────
+const TR=0.45;
+const tetraBase=[
+  {x:0,           y:TR,                    z:0,                           type:'p'},
+  {x:TR*2/3*Math.sqrt(2), y:-TR/3,         z:TR*2/3*Math.sqrt(2/3),      type:'n'},
+  {x:-TR*2/3*Math.sqrt(2),y:-TR/3,         z:TR*2/3*Math.sqrt(2/3),      type:'n'},
+  {x:0,           y:-TR/3,                 z:-TR*4/3*Math.sqrt(1/6),     type:'p'},
+];
+const tetraEdges=[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]];
+
+// Copia con vibrazione
+let tetraVerts=tetraBase.map(v=>({...v}));
+
+function stepNucleus(){
+  for(let i=0;i<4;i++){
+    if(Math.random()<0.4){
+      tetraVerts[i].x=tetraBase[i].x+(Math.random()-.5)*.04;
+      tetraVerts[i].y=tetraBase[i].y+(Math.random()-.5)*.04;
+      tetraVerts[i].z=tetraBase[i].z+(Math.random()-.5)*.04;
+    }
+  }
+}
+
+// 13 punti per ogni nucleone + quark
+const R_NUC=0.22;
+const nucPts=makeIco13(R_NUC);
+const nucAdj=buildAdj13(nucPts,R_NUC);
+
+// Quark: si muovono tra i 13 punti del nucleone
+function makeQuarkState(isP){
+  return isP?[
+    {pt:0, type:'u', color:'#ff6060'},
+    {pt:4, type:'u', color:'#50c8ff'},
+    {pt:9, type:'d', color:'#00ff00'},
+  ]:[
+    {pt:0, type:'u', color:'#ff6060'},
+    {pt:3, type:'d', color:'#50c8ff'},
+    {pt:7, type:'d', color:'#00ff00'},
+  ];
+}
+const tetraQuarks=tetraBase.map(v=>makeQuarkState(v.type==='p'));
+
+function stepQuarks(qs){
+  for(let qi=0;qi<qs.length;qi++){
+    if(Math.random()<0.4){
+      const q=qs[qi];
+      const nb=nucAdj[q.pt];
+      const free=nb.filter(n=>!qs.some((o,oi)=>oi!==qi&&o.pt===n));
+      if(free.length>0) q.pt=free[Math.floor(Math.random()*free.length)];
+    }
+  }
+}
+
+// ── ELETTRONI: 2 su 156 stati (sfera 0-11, punto 0-12) ────────
+// Pauli: non possono avere stesso (sphere, point)
+let e1={sphere:0,point:0,path:[],t:0};
+let e2={sphere:6,point:1,path:[],t:0};
+
+function buildPath(e,other){
+  let cs=e.sphere,cp=e.point;
+  e.path=[];
+  for(let i=0;i<600;i++){
+    const nb=orbAdj[cs];
+    let ns=cs,np=cp;
+    if(Math.random()<0.65&&nb.length) ns=nb[Math.floor(Math.random()*nb.length)];
+    const snb=subAdj[cp];
+    if(snb.length&&Math.random()<0.8) np=snb[Math.floor(Math.random()*snb.length)];
+    else np=Math.floor(Math.random()*13);
+    // Pauli check
+    if(ns===other.sphere&&np===other.point){
+      np=(np+1)%13;
+    }
+    e.path.push({sphere:ns,point:np});
+    cs=ns;cp=np;
+  }
+  e.t=0;
+}
+buildPath(e1,e2);
+buildPath(e2,e1);
+
+// Camera
+let rotX=.3,rotY=.5,zoom=75;
+let dragging=false,lastMX,lastMY,lastPD=null;
+canvas.addEventListener('mousedown',e=>{dragging=true;lastMX=e.clientX;lastMY=e.clientY;});
+canvas.addEventListener('mouseup',()=>dragging=false);
+window.addEventListener('mouseup',()=>dragging=false);
+canvas.addEventListener('mousemove',e=>{if(!dragging)return;rotY+=(e.clientX-lastMX)*.012;rotX+=(e.clientY-lastMY)*.012;lastMX=e.clientX;lastMY=e.clientY;});
+canvas.addEventListener('wheel',e=>{zoom=Math.max(30,Math.min(300,zoom-e.deltaY*.1));e.preventDefault();},{passive:false});
+canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){dragging=true;lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;}else if(e.touches.length===2){dragging=false;lastPD=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}});
+canvas.addEventListener('touchend',e=>{if(e.touches.length<2)lastPD=null;if(e.touches.length===0)dragging=false;});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(lastPD)zoom=Math.max(30,Math.min(300,zoom*(d/lastPD)));lastPD=d;}else if(dragging){rotY+=(e.touches[0].clientX-lastMX)*.012;rotX+=(e.touches[0].clientY-lastMY)*.012;lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;}},{passive:false});
+document.getElementById('zoomIn').addEventListener('click',()=>zoom=Math.min(300,zoom*1.25));
+document.getElementById('zoomOut').addEventListener('click',()=>zoom=Math.max(30,zoom*.8));
+
+function project(px,py,pz){
+  let x=px,y=py,z=pz;
+  let nx=x*Math.cos(rotY)+z*Math.sin(rotY),nz=-x*Math.sin(rotY)+z*Math.cos(rotY);x=nx;z=nz;
+  let ny=y*Math.cos(rotX)-z*Math.sin(rotX),nz2=y*Math.sin(rotX)+z*Math.cos(rotX);y=ny;z=nz2;
+  const fov=6,scale=zoom*fov/(fov+z+4);
+  return{sx:W/2+x*scale,sy:H/2-y*scale,z:z+4,scale};
+}
+
+function drawWireframeSphere(r,color,lw=1,nL=14,nLat=7){
+  for(let i=0;i<nL;i++){
+    const lon=(i/nL)*Math.PI*2;ctx.beginPath();
+    for(let j=0;j<=20;j++){const lat=-Math.PI/2+(j/20)*Math.PI;const p=project(r*Math.cos(lat)*Math.cos(lon),r*Math.sin(lat),r*Math.cos(lat)*Math.sin(lon));j===0?ctx.moveTo(p.sx,p.sy):ctx.lineTo(p.sx,p.sy);}
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.stroke();
+  }
+  for(let i=1;i<nLat;i++){
+    const lat=-Math.PI/2+(i/nLat)*Math.PI;const ry=r*Math.cos(lat),yr=r*Math.sin(lat);ctx.beginPath();
+    for(let j=0;j<=32;j++){const lon=(j/32)*Math.PI*2;const p=project(ry*Math.cos(lon),yr,ry*Math.sin(lon));j===0?ctx.moveTo(p.sx,p.sy):ctx.lineTo(p.sx,p.sy);}
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.stroke();
+  }
+}
+
+let frame=0;
+function draw(){
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#03050f';ctx.fillRect(0,0,W,H);
+  frame++;
+
+  // Aggiorna quarks e nucleo
+  tetraQuarks.forEach(qs=>stepQuarks(qs));
+  if(frame%8===0) stepNucleus();
+
+  // Avanza elettroni
+  e1.t++;
+  if(e1.t>=e1.path.length){buildPath(e1,e2);}
+  else{const s=e1.path[e1.t];e1.sphere=s.sphere;e1.point=s.point;}
+
+  e2.t++;
+  if(e2.t>=e2.path.length){buildPath(e2,e1);}
+  else{
+    const s=e2.path[e2.t];
+    if(s.sphere===e1.sphere&&s.point===e1.point){
+      e2.point=(e1.point+1)%13;
+    } else {
+      e2.sphere=s.sphere;e2.point=s.point;
+    }
+  }
+
+  rotY+=.0005;
+
+  const proj=icoVerts.map(v=>project(v.x,v.y,v.z));
+  const projC=project(0,0,0);
+
+  // Sfera esterna wireframe
+  drawWireframeSphere(R_ORB*1.55,'rgba(106,174,255,0.06)',1.2);
+
+  // Spigoli icosaedro
+  for(const [i,j] of icoEdges){
+    const p1=proj[i],p2=proj[j];
+    const alpha=Math.max(0,.04+((p1.z+p2.z)/2)*.018);
+    ctx.beginPath();ctx.moveTo(p1.sx,p1.sy);ctx.lineTo(p2.sx,p2.sy);
+    ctx.strokeStyle=`rgba(50,100,200,${alpha})`;ctx.lineWidth=.7;ctx.stroke();
+  }
+
+  // Linee centro → vertici
+  for(let i=0;i<12;i++){
+    const p=proj[i];
+    const alpha=Math.max(0,.03+p.z*.012);
+    ctx.beginPath();ctx.moveTo(projC.sx,projC.sy);ctx.lineTo(p.sx,p.sy);
+    ctx.strokeStyle=`rgba(106,174,255,${alpha})`;ctx.lineWidth=.4;ctx.stroke();
+  }
+
+  // Ordina sfere back-to-front
+  const sorted=[...icoVerts.map((_,i)=>i)].sort((a,b)=>proj[a].z-proj[b].z);
+
+  // ── SFERE ORBITALI con 13 sub-punti ───────────────────────
+  for(const i of sorted){
+    const vc=icoVerts[i];
+    const pc=proj[i];
+    const depth=Math.max(.2,Math.min(1,.3+pc.z*.1));
+    const isE1=i===e1.sphere,isE2=i===e2.sphere;
+    const sR=Math.max(5,pc.scale*.42);
+
+    // Corpo sfera
+    if(isE1||isE2){
+      const col=isE1?'255,144,80':'220,80,255';
+      const grd=ctx.createRadialGradient(pc.sx,pc.sy,0,pc.sx,pc.sy,sR*2.8);
+      grd.addColorStop(0,`rgba(${col},0.35)`);grd.addColorStop(1,`rgba(${col},0)`);
+      ctx.beginPath();ctx.arc(pc.sx,pc.sy,sR*2.8,0,Math.PI*2);ctx.fillStyle=grd;ctx.fill();
+      ctx.beginPath();ctx.arc(pc.sx,pc.sy,sR,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${isE1?'50,20,8':'60,8,70'},${depth*.8})`;ctx.fill();
+      ctx.strokeStyle=`rgba(${col},${depth*.9})`;ctx.lineWidth=1.2;ctx.stroke();
+    } else {
+      ctx.beginPath();ctx.arc(pc.sx,pc.sy,sR,0,Math.PI*2);
+      ctx.fillStyle=`rgba(6,12,35,${depth*.6})`;ctx.fill();
+      ctx.strokeStyle=`rgba(40,80,160,${depth*.55})`;ctx.lineWidth=.8;ctx.stroke();
+    }
+
+    // 13 sub-punti interni
+    const dotR=Math.max(1,sR*.13);
+    for(let s=0;s<13;s++){
+      const sp=subPts[s];
+      const pp=project(vc.x+sp.x,vc.y+sp.y,vc.z+sp.z);
+      const isE1Active=isE1&&s===e1.point;
+      const isE2Active=isE2&&s===e2.point;
+
+      if(isE1Active){
+        const gd=ctx.createRadialGradient(pp.sx,pp.sy,0,pp.sx,pp.sy,dotR*4);
+        gd.addColorStop(0,'rgba(255,210,140,0.95)');gd.addColorStop(1,'rgba(255,100,20,0)');
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR*4,0,Math.PI*2);ctx.fillStyle=gd;ctx.fill();
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR*1.5,0,Math.PI*2);
+        ctx.fillStyle=`rgba(255,230,160,${depth})`;ctx.fill();
+      } else if(isE2Active){
+        const gd=ctx.createRadialGradient(pp.sx,pp.sy,0,pp.sx,pp.sy,dotR*4);
+        gd.addColorStop(0,'rgba(240,140,255,0.95)');gd.addColorStop(1,'rgba(180,0,220,0)');
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR*4,0,Math.PI*2);ctx.fillStyle=gd;ctx.fill();
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR*1.5,0,Math.PI*2);
+        ctx.fillStyle=`rgba(240,160,255,${depth})`;ctx.fill();
+      } else {
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR*.8,0,Math.PI*2);
+        const col=isE1?`rgba(180,100,30,${depth*.55})`:isE2?`rgba(140,30,160,${depth*.55})`:`rgba(40,80,160,${depth*.35})`;
+        ctx.fillStyle=col;ctx.fill();
+      }
+    }
+
+    // Indice sfera
+    if(sR>7){
+      ctx.fillStyle=`rgba(100,140,255,${depth*.45})`;
+      ctx.font=`${Math.max(7,sR*.28)}px Space Mono`;
+      ctx.textAlign='center';
+      ctx.fillText(i,pc.sx,pc.sy-sR*.82);
+    }
+  }
+
+  // ── NUCLEO TETRAEDRICO con 13 punti per nucleone ──────────
+  const tProj=tetraVerts.map(v=>project(v.x,v.y,v.z));
+  const tSorted=[...tetraVerts.map((_,i)=>i)].sort((a,b)=>tProj[a].z-tProj[b].z);
+
+  // Spigoli tetraedro
+  for(const [a,b] of tetraEdges){
+    const pa=tProj[a],pb=tProj[b];
+    const alpha=Math.max(0,.1+((pa.z+pb.z)/2)*.08);
+    const isProtonEdge=tetraVerts[a].type==='p'&&tetraVerts[b].type==='p';
+    ctx.beginPath();ctx.moveTo(pa.sx,pa.sy);ctx.lineTo(pb.sx,pb.sy);
+    ctx.strokeStyle=isProtonEdge?`rgba(255,100,100,${alpha})`:`rgba(100,150,255,${alpha})`;
+    ctx.lineWidth=.8;ctx.stroke();
+  }
+
+  // Sfere nucleoni con 13 punti e quark
+  for(const i of tSorted){
+    const v=tetraVerts[i];
+    const p=tProj[i];
+    const depth=Math.max(.3,Math.min(1,.4+p.z*.15));
+    const sR=Math.max(6,p.scale*.42);
+    const isP=v.type==='p';
+
+    // Glow nucleone
+    const col=isP?'rgba(255,60,60,':'rgba(60,120,255,';
+    const grd=ctx.createRadialGradient(p.sx-sR*.2,p.sy-sR*.2,0,p.sx,p.sy,sR*1.3);
+    grd.addColorStop(0,col+`${.5*depth})`);grd.addColorStop(.5,col+`${.25*depth})`);grd.addColorStop(1,col+'0)');
+    ctx.beginPath();ctx.arc(p.sx,p.sy,sR,0,Math.PI*2);ctx.fillStyle=grd;ctx.fill();
+    ctx.strokeStyle=isP?`rgba(255,120,120,${depth*.6})`:`rgba(100,160,255,${depth*.6})`;
+    ctx.lineWidth=.8;ctx.stroke();
+
+    // Spigoli rete interna 13 punti
+    for(let s=0;s<13;s++){
+      const nb=nucAdj[s];
+      const pi=project(v.x+nucPts[s].x,v.y+nucPts[s].y,v.z+nucPts[s].z);
+      for(const j of nb){
+        if(j<=s)continue;
+        const pj=project(v.x+nucPts[j].x,v.y+nucPts[j].y,v.z+nucPts[j].z);
+        ctx.beginPath();ctx.moveTo(pi.sx,pi.sy);ctx.lineTo(pj.sx,pj.sy);
+        ctx.strokeStyle=isP?'rgba(255,100,100,0.1)':'rgba(100,160,255,0.1)';ctx.lineWidth=.4;ctx.stroke();
+      }
+    }
+
+    // 13 punti con quark
+    const qs=tetraQuarks[i];
+    for(let s=0;s<13;s++){
+      const sp=nucPts[s];
+      const pp=project(v.x+sp.x,v.y+sp.y,v.z+sp.z);
+      const qHere=qs.find(q=>q.pt===s);
+      const dotR=Math.max(2,pp.scale*.08);
+
+      if(qHere){
+        const gd=ctx.createRadialGradient(pp.sx,pp.sy,0,pp.sx,pp.sy,dotR*2.5);
+        gd.addColorStop(0,qHere.color+'ee');gd.addColorStop(1,qHere.color+'00');
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR*2.5,0,Math.PI*2);ctx.fillStyle=gd;ctx.fill();
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR,0,Math.PI*2);ctx.fillStyle=qHere.color;ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,0.95)';
+        ctx.font=`bold ${Math.max(7,dotR*1.1)}px Space Mono`;
+        ctx.textAlign='center';
+        ctx.fillText(qHere.type,pp.sx,pp.sy+3);
+      } else {
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,Math.max(1,dotR*.6),0,Math.PI*2);
+        ctx.fillStyle=isP?'rgba(255,100,100,0.2)':'rgba(100,160,255,0.2)';ctx.fill();
+      }
+    }
+
+    // Label nucleone
+    ctx.fillStyle=isP?'rgba(255,160,160,.7)':'rgba(160,190,255,.7)';
+    ctx.font=`${Math.max(6,sR*.35)}px Space Mono`;ctx.textAlign='center';
+    ctx.fillText(isP?'p':'n',p.sx,p.sy+3);
+  }
+
+  // Info
+  const pauliOk=!(e1.sphere===e2.sphere&&e1.point===e2.point);
+  const pt1Label=e1.point===0?'centro':`ico-${e1.point}`;
+  const pt2Label=e2.point===0?'centro':`ico-${e2.point}`;
+  document.getElementById('e1pos').textContent=`Sfera ${e1.sphere} · Punto ${e1.point}`;
+  document.getElementById('e1state').textContent=`Stato: ${e1.sphere*13+e1.point+1}/156 · ${pt1Label}`;
+  document.getElementById('e2pos').textContent=`Sfera ${e2.sphere} · Punto ${e2.point}`;
+  document.getElementById('e2state').textContent=`Stato: ${e2.sphere*13+e2.point+1}/156 · ${pt2Label}`;
+  document.getElementById('pauli').textContent=pauliOk?'Pauli: stati distinti ✓':'Pauli: VIOLAZIONE ✗';
+  document.getElementById('pauli').style.color=pauliOk?'#303860':'#ff4040';
+  document.getElementById('paulistat').textContent=pauliOk?'✓':'✗';
+  document.getElementById('paulistat').style.color=pauliOk?'#6aaeff':'#ff4040';
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Novabene — Matrice Icosaedrica n=1</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#020408;color:#c8d8ff;font-family:'Space Mono',monospace;overflow:hidden;height:100vh;display:flex;flex-direction:column;}
+  header{padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #0d1a30;background:rgba(2,4,8,0.98);z-index:10;flex-shrink:0;}
+  .title{font-family:'Syne',sans-serif;font-weight:900;font-size:14px;letter-spacing:3px;color:#4a9eff;}
+  .subtitle{font-size:8px;color:#1a2a4a;letter-spacing:2px;margin-top:2px;}
+  .stats{display:flex;gap:14px;}
+  .stat{text-align:center;}
+  .stat-val{font-size:13px;font-weight:700;color:#4a9eff;font-family:'Syne',sans-serif;}
+  .stat-label{color:#1a2a4a;font-size:7px;letter-spacing:1px;}
+  #canvas{flex:1;display:block;cursor:grab;}
+  #canvas:active{cursor:grabbing;}
+  .panel{position:absolute;background:rgba(2,4,8,0.95);border:1px solid #0d1a30;padding:10px;border-radius:6px;font-size:9px;}
+  #matrix-panel{top:60px;right:16px;width:200px;}
+  #ctrl-panel{top:60px;left:16px;width:185px;}
+  .btn{background:rgba(15,30,70,0.9);border:1px solid #1a3a8a;color:#4a9eff;padding:5px 8px;border-radius:4px;cursor:pointer;font-family:'Space Mono',monospace;font-size:8px;margin:2px 0;display:block;width:100%;letter-spacing:1px;text-align:left;}
+  .btn:hover{background:rgba(30,60,140,0.9);}
+  .btn.active{background:rgba(10,42,110,0.9);border-color:#4a9eff;color:#88ccff;}
+  .sep{border-top:1px solid #0d1a30;margin:8px 0;}
+  .ptitle{color:#4a9eff;font-family:'Syne',sans-serif;font-size:10px;letter-spacing:2px;margin-bottom:6px;}
+  .legend{position:absolute;bottom:16px;left:16px;font-size:8px;color:#1a2a4a;line-height:2.2;background:rgba(2,4,8,0.88);padding:8px 10px;border-radius:6px;}
+  .controls{position:absolute;bottom:16px;right:16px;font-size:8px;color:#1a2a4a;text-align:right;line-height:2;background:rgba(2,4,8,0.85);padding:6px 10px;border-radius:6px;}
+  .zoom-btns{position:absolute;bottom:60px;right:16px;display:flex;flex-direction:column;gap:4px;}
+  .zoom-btn{background:rgba(15,25,50,0.95);border:1px solid #0d1a30;color:#4a9eff;font-size:15px;width:28px;height:28px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:800;user-select:none;}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="title">NOVABENE &#8212; MATRICE ICOSAEDRICA n=1</div>
+    <div class="subtitle">13 CELLE &#183; SOMMA = +02 &#183; VALORI INTERI &#8709; A +02 &#183; SCALA PLANCK ~10&#8315;&#179;&#8308; m</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-val" id="s-somma">+02</div><div class="stat-label">SOMMA</div></div>
+    <div class="stat"><div class="stat-val" id="s-cronon">&#8709;</div><div class="stat-label">CRONON</div></div>
+    <div class="stat"><div class="stat-val" id="s-ent">2.565</div><div class="stat-label">ENTROPIA</div></div>
+    <div class="stat"><div class="stat-val" id="s-valid">&#10003;</div><div class="stat-label">VALIDA</div></div>
+  </div>
+</header>
+<canvas id="canvas"></canvas>
+
+<div class="panel" id="ctrl-panel">
+  <div class="ptitle">CONFIGURAZIONI</div>
+  <button class="btn active" id="btn-a" onclick="setConfig('A')">A &#8212; UNIFORME (+0 ovunque)</button>
+  <button class="btn" id="btn-b" onclick="setConfig('B')">B &#8212; CENTRO (+02, vertici &#8709;)</button>
+  <button class="btn" id="btn-c" onclick="setConfig('C')">C &#8212; VERTICE 1 (+02, resto &#8709;)</button>
+  <button class="btn" id="btn-d" onclick="setConfig('D')">D &#8212; BILANCIATA (+01 centro, +0 x12)</button>
+  <button class="btn" id="btn-e" onclick="setConfig('E')">E &#8212; ASIMMETRICA (mista)</button>
+  <button class="btn" id="btn-r" onclick="setConfig('R')">R &#8212; CASUALE VALIDA</button>
+  <div class="sep"></div>
+  <div class="ptitle">EVOLUZIONE (DISCRETA)</div>
+  <button class="btn" id="btn-evo" onclick="toggleEvo()">&#9654; AVVIA EVOLUZIONE</button>
+  <button class="btn" onclick="stepOnce()">STEP +1 CRONON</button>
+  <div style="color:#1a2a4a;font-size:8px;margin-top:6px;">Velocita crononi/s:</div>
+  <input type="range" id="speed" min="1" max="8" value="2" style="width:100%;margin:4px 0;">
+  <div class="sep"></div>
+  <div style="color:#1a2a4a;font-size:8px;">Scala: 1 cella &#8773; 1.6&#215;10&#8315;&#179;&#8309; m</div>
+  <div style="color:#1a2a4a;font-size:8px;">Raggio bolla: &#8773; 2&#215;10&#8315;&#179;&#8308; m</div>
+  <div style="color:#1a2a4a;font-size:8px;">Scala atomica: n&#8773;22</div>
+</div>
+
+<div class="panel" id="matrix-panel">
+  <div class="ptitle">STATO MATRICE</div>
+  <div id="matrix-cells"></div>
+  <div class="sep"></div>
+  <div style="color:#1a2a4a;font-size:8px;">Conservazione:</div>
+  <div id="conservation" style="color:#00ff88;font-size:10px;font-weight:700;">&#8721; = +02 (13 dec) &#10003;</div>
+  <div class="sep"></div>
+  <div style="color:#1a2a4a;font-size:8px;">Config. valide totali:</div>
+  <div style="color:#4a9eff;font-size:9px;">5.200.300</div>
+  <div style="color:#4a9eff;font-size:8px;">= +4089189 Novabene</div>
+</div>
+
+<div class="legend">
+  <div>&#9632; <span style="color:#88ff88">Centro &#8709;g</span> &#8212; gluone mediatore</div>
+  <div>&#9632; <span style="color:#4a9eff">Vertici</span> &#8212; 12 posizioni orbitali</div>
+  <div>&#9632; Luminosita = valore Novabene</div>
+  <div>&#9632; &#8709; = assenza, +02 = max</div>
+</div>
+<div class="zoom-btns">
+  <div class="zoom-btn" onclick="zoom=Math.min(350,zoom*1.2)">+</div>
+  <div class="zoom-btn" onclick="zoom=Math.max(40,zoom*.83)">&#8722;</div>
+</div>
+<div class="controls">DRAG &#8212; ruota<br>SCROLL &#8212; zoom</div>
+
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=canvas.offsetWidth;H=canvas.height=canvas.offsetHeight;}
+resize();window.addEventListener('resize',resize);
+
+const phi=(1+Math.sqrt(5))/2;
+
+// 13 punti icosaedrici normalizzati
+const rawIco=[[0,0,0],[0,1,phi],[0,-1,phi],[0,1,-phi],[0,-1,-phi],
+  [1,phi,0],[-1,phi,0],[1,-phi,0],[-1,-phi,0],
+  [phi,0,1],[-phi,0,1],[phi,0,-1],[-phi,0,-1]];
+function norm3(v){const r=Math.sqrt(v[0]**2+v[1]**2+v[2]**2);return r===0?[0,0,0]:v.map(x=>x/r);}
+const pts=rawIco.map(v=>v[0]===0&&v[1]===0&&v[2]===0?[0,0,0]:norm3(v));
+
+// Adiacenze icosaedriche
+const edgeLen=2/phi*1.05;
+const adj=Array.from({length:13},()=>[]);
+adj[0]=Array.from({length:12},(_,i)=>i+1);
+for(let i=1;i<13;i++) adj[i].push(0);
+for(let i=1;i<13;i++) for(let j=i+1;j<13;j++){
+  const d=Math.sqrt((pts[i][0]-pts[j][0])**2+(pts[i][1]-pts[j][1])**2+(pts[i][2]-pts[j][2])**2);
+  if(d<edgeLen){adj[i].push(j);adj[j].push(i);}
+}
+
+// ── NOVABENE ─────────────────────────────────────────────────
+// Valori interi: 0=∅, 1=+0, 2=+1, ..., 13=+02
+function decToNov(n){
+  n=Math.round(n);
+  if(n===0) return '\u2205';
+  const sign=n>0?'+':'-';
+  let nabs=Math.abs(n);
+  const digits=[];
+  while(nabs>0){
+    const r=nabs%10;
+    if(r===0){digits.push('9');nabs=(nabs-10)/10;}
+    else{digits.push(String(r-1));nabs=(nabs-r)/10;}
+  }
+  return sign+digits.reverse().join('');
+}
+
+const names=['\u2205g (centro)',...Array.from({length:12},(_,i)=>`v${i+1}`)];
+
+// ── STATO: 13 INTERI, SOMMA=13 ───────────────────────────────
+let matrix=new Array(13).fill(1); // Config A: tutte +0
+
+// Configurazioni predefinite (tutte somma=13)
+const configs={
+  A: new Array(13).fill(1),          // uniforme: +0 ovunque
+  B: [13,0,0,0,0,0,0,0,0,0,0,0,0],  // +02 al centro
+  C: [0,13,0,0,0,0,0,0,0,0,0,0,0],  // +02 a v1
+  D: [2,1,1,1,1,1,1,1,1,1,1,1,1],   // +01 centro, +0 x12 (2+12=14? no 2+12=14 sbagliato)
+  // D: centro=2, 11 vertici=1, 1 vertice=0 -> 2+11+0=13 ✓
+  E: [3,2,2,1,1,1,1,1,1,0,0,0,0],   // asimmetrica: 3+2+2+1*6+0*3=13 ✓
+};
+// Correggo D: 2 + 12*x = 13 -> x non intero. Invece: 1 + 12*1 = 13 = A. 
+// D = centro 2, vertici: 11 con +0(=1), 1 con ∅(=0): 2+11=13 ✓
+configs.D=[2,1,1,1,1,1,1,1,1,1,1,1,0];
+// E: asimmetrica 3+2+2+1+1+1+1+1+1+0+0+0+0=13 ✓
+configs.E=[3,2,2,1,1,1,1,1,1,0,0,0,0];
+
+function setConfig(c){
+  document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+c.toLowerCase()).classList.add('active');
+  if(c==='R'){
+    matrix=randomValid();
+  } else {
+    matrix=[...configs[c]];
+  }
+  cronon=0;
+  evoRunning=false;
+  document.getElementById('btn-evo').textContent='\u25B6 AVVIA EVOLUZIONE';
+}
+
+// Configurazione casuale valida (interi ≥0, somma=13)
+function randomValid(){
+  // Distribuisce 13 unità su 13 celle in modo casuale
+  const m=new Array(13).fill(0);
+  let rem=13;
+  for(let i=0;i<12;i++){
+    const v=Math.floor(Math.random()*(rem+1));
+    m[i]=v;
+    rem-=v;
+  }
+  m[12]=rem;
+  return m;
+}
+
+// ── EVOLUZIONE DISCRETA ───────────────────────────────────────
+// Ad ogni cronon: sposta 1 unità da una cella a un suo adiacente
+// Conserva la somma per costruzione
+function stepOnce(){
+  // Trova celle con valore > 0
+  const nonEmpty=matrix.map((v,i)=>i).filter(i=>matrix[i]>0);
+  if(!nonEmpty.length) return;
+  
+  // Sceglie una cella sorgente casuale (tra quelle non vuote)
+  const src=nonEmpty[Math.floor(Math.random()*nonEmpty.length)];
+  // Sceglie un adiacente come destinazione
+  const dst=adj[src][Math.floor(Math.random()*adj[src].length)];
+  
+  // Sposta 1 unità
+  matrix[src]--;
+  matrix[dst]++;
+  cronon++;
+}
+
+let cronon=0;
+let evoRunning=false;
+let lastStep=0;
+
+function toggleEvo(){
+  evoRunning=!evoRunning;
+  document.getElementById('btn-evo').textContent=
+    evoRunning?'\u23F8 PAUSA':'\u25B6 AVVIA EVOLUZIONE';
+}
+
+// ── CAMERA ───────────────────────────────────────────────────
+let rotX=0.3,rotY=0.5,zoom=105;
+let dragging=false,lastMX,lastMY,lastPD=null;
+canvas.addEventListener('mousedown',e=>{dragging=true;lastMX=e.clientX;lastMY=e.clientY;});
+canvas.addEventListener('mouseup',()=>dragging=false);
+window.addEventListener('mouseup',()=>dragging=false);
+canvas.addEventListener('mousemove',e=>{if(!dragging)return;rotY+=(e.clientX-lastMX)*.012;rotX+=(e.clientY-lastMY)*.012;lastMX=e.clientX;lastMY=e.clientY;});
+canvas.addEventListener('wheel',e=>{zoom=Math.max(40,Math.min(350,zoom-e.deltaY*.12));e.preventDefault();},{passive:false});
+canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){dragging=true;lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;}else if(e.touches.length===2){dragging=false;lastPD=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}});
+canvas.addEventListener('touchend',e=>{if(e.touches.length<2)lastPD=null;if(e.touches.length===0)dragging=false;});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(lastPD)zoom=Math.max(40,Math.min(350,zoom*(d/lastPD)));lastPD=d;}else if(dragging){rotY+=(e.touches[0].clientX-lastMX)*.012;rotX+=(e.touches[0].clientY-lastMY)*.012;lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;}},{passive:false});
+
+function project(px,py,pz){
+  let x=px,y=py,z=pz;
+  let nx=x*Math.cos(rotY)+z*Math.sin(rotY),nz=-x*Math.sin(rotY)+z*Math.cos(rotY);x=nx;z=nz;
+  let ny=y*Math.cos(rotX)-z*Math.sin(rotX),nz2=y*Math.sin(rotX)+z*Math.cos(rotX);y=ny;z=nz2;
+  const fov=7,sc=zoom*fov/(fov+z+5);
+  return{sx:W/2+x*sc,sy:H/2-y*sc,z:z+5,sc};
+}
+
+// ── UI ───────────────────────────────────────────────────────
+function updateUI(){
+  const somma=matrix.reduce((a,b)=>a+b,0);
+  document.getElementById('s-somma').textContent=decToNov(somma);
+  const label=cronon===0?'\u2205':cronon<=10?`+${cronon-1}`:`+${cronon-1}`;
+  document.getElementById('s-cronon').textContent=label;
+
+  // Entropia di Shannon
+  let H=0;
+  for(const v of matrix){
+    const p=v/somma;
+    if(p>0) H-=p*Math.log2(p);
+  }
+  document.getElementById('s-ent').textContent=H.toFixed(3);
+
+  const ok=somma===13;
+  document.getElementById('s-valid').textContent=ok?'\u2713':'\u2717';
+  document.getElementById('s-valid').style.color=ok?'#00ff88':'#ff4444';
+  document.getElementById('conservation').innerHTML=
+    `&#8721; = ${decToNov(somma)} (${somma} dec) ${ok?'&#10003;':'&#10007;'}`;
+  document.getElementById('conservation').style.color=ok?'#00ff88':'#ff4444';
+
+  // Pannello celle
+  const cont=document.getElementById('matrix-cells');
+  cont.innerHTML='';
+  for(let i=0;i<13;i++){
+    const v=matrix[i];
+    const t=v/13;
+    const nov=decToNov(v);
+    const isC=i===0;
+    const col=isC?
+      `rgba(80,255,120,${0.2+t*0.8})`:
+      `rgba(74,158,255,${0.2+t*0.8})`;
+    const div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;gap:3px;margin:1.5px 0;';
+    div.innerHTML=`
+      <span style="width:65px;color:${isC?'#44ff88':'#1a2a4a'};font-size:7.5px;overflow:hidden;">${names[i]}</span>
+      <div style="flex:1;height:8px;background:#0a1020;border-radius:2px;overflow:hidden;">
+        <div style="height:100%;width:${t*100}%;background:${col};border-radius:2px;"></div>
+      </div>
+      <span style="width:28px;text-align:right;font-size:8px;font-weight:700;color:${isC?'#88ff88':'#4a9eff'};">${nov}</span>
+    `;
+    cont.appendChild(div);
+  }
+}
+
+// ── DRAW ─────────────────────────────────────────────────────
+let frame=0;
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#020408';ctx.fillRect(0,0,W,H);
+  frame++;
+
+  // Evoluzione automatica
+  const speed=parseInt(document.getElementById('speed').value);
+  const interval=Math.max(1,Math.round(60/speed));
+  if(evoRunning && frame%interval===0) stepOnce();
+
+  rotY+=0.0004;
+
+  const projs=pts.map(p=>project(p[0],p[1],p[2]));
+  const maxV=Math.max(...matrix,1);
+
+  // Sfera wireframe guida
+  for(let i=0;i<10;i++){
+    const lon=(i/10)*Math.PI*2;
+    ctx.beginPath();
+    for(let j=0;j<=16;j++){
+      const lat=-Math.PI/2+(j/16)*Math.PI;
+      const p=project(Math.cos(lat)*Math.cos(lon)*1.18,Math.sin(lat)*1.18,Math.cos(lat)*Math.sin(lon)*1.18);
+      j===0?ctx.moveTo(p.sx,p.sy):ctx.lineTo(p.sx,p.sy);
+    }
+    ctx.strokeStyle='rgba(74,158,255,0.04)';ctx.lineWidth=0.5;ctx.stroke();
+  }
+
+  // Spigoli tra vertici
+  for(let i=1;i<13;i++) for(const j of adj[i]){
+    if(j<=i||j===0) continue;
+    const p1=projs[i],p2=projs[j];
+    const alpha=Math.max(0.04,(matrix[i]+matrix[j])/(2*maxV)*0.3+0.04);
+    ctx.beginPath();ctx.moveTo(p1.sx,p1.sy);ctx.lineTo(p2.sx,p2.sy);
+    ctx.strokeStyle=`rgba(74,158,255,${alpha})`;ctx.lineWidth=0.7;ctx.stroke();
+  }
+  // Spigoli centro→vertici
+  for(let i=1;i<13;i++){
+    const p1=projs[0],p2=projs[i];
+    const alpha=Math.max(0.03,(matrix[0]+matrix[i])/(2*maxV)*0.3+0.03);
+    ctx.beginPath();ctx.moveTo(p1.sx,p1.sy);ctx.lineTo(p2.sx,p2.sy);
+    ctx.strokeStyle=`rgba(100,255,100,${alpha})`;ctx.lineWidth=0.5;ctx.stroke();
+  }
+
+  // Ordine back-to-front
+  const order=[...Array(13).keys()].sort((a,b)=>projs[a].z-projs[b].z);
+
+  for(const i of order){
+    const p=projs[i];
+    const v=matrix[i];
+    const t=v/13; // normalizzato 0-1
+    const isC=i===0;
+    const depth=Math.max(0.2,Math.min(1,0.3+p.z*0.1));
+    const sR=Math.max(5,p.sc*(isC?0.55:0.4));
+
+    if(isC){
+      // Centro gluone — verde, sempre visibile
+      if(t>0){
+        const grd=ctx.createRadialGradient(p.sx,p.sy,0,p.sx,p.sy,sR*(1+t*3));
+        grd.addColorStop(0,`rgba(80,255,120,${t*0.5})`);
+        grd.addColorStop(1,'rgba(80,255,120,0)');
+        ctx.beginPath();ctx.arc(p.sx,p.sy,sR*(1+t*3),0,Math.PI*2);
+        ctx.fillStyle=grd;ctx.fill();
+      }
+      ctx.beginPath();ctx.arc(p.sx,p.sy,sR*(0.5+t*0.5),0,Math.PI*2);
+      ctx.fillStyle=`rgba(5,20,10,${depth*0.95})`;ctx.fill();
+      ctx.strokeStyle=`rgba(80,255,120,${0.35+t*0.65})`;ctx.lineWidth=1+t;ctx.stroke();
+      // Label + valore
+      ctx.fillStyle=`rgba(140,255,160,${0.7+t*0.3})`;
+      ctx.font=`bold ${Math.max(7,sR*0.42)}px Space Mono`;
+      ctx.textAlign='center';
+      ctx.fillText('\u2205g',p.sx,p.sy-2);
+      ctx.fillStyle=`rgba(100,255,120,${0.6+t*0.4})`;
+      ctx.font=`bold ${Math.max(8,sR*0.5)}px Space Mono`;
+      ctx.fillText(decToNov(v),p.sx,p.sy+sR*0.6+4);
+    } else {
+      // Vertici — blu
+      if(t>0){
+        const grd=ctx.createRadialGradient(p.sx,p.sy,0,p.sx,p.sy,sR*(1+t*2.5));
+        grd.addColorStop(0,`rgba(74,158,255,${t*0.45})`);
+        grd.addColorStop(1,'rgba(74,158,255,0)');
+        ctx.beginPath();ctx.arc(p.sx,p.sy,sR*(1+t*2.5),0,Math.PI*2);
+        ctx.fillStyle=grd;ctx.fill();
+      }
+      ctx.beginPath();ctx.arc(p.sx,p.sy,sR*(0.35+t*0.65),0,Math.PI*2);
+      ctx.fillStyle=`rgba(4,10,30,${depth*0.9})`;ctx.fill();
+      ctx.strokeStyle=t>0?`rgba(74,158,255,${0.3+t*0.7})`:`rgba(20,50,120,${depth*0.4})`;
+      ctx.lineWidth=0.7+t*0.8;ctx.stroke();
+      // Valore
+      const textColor=t>0?`rgba(150,200,255,${0.6+t*0.4})`:`rgba(20,50,120,0.5)`;
+      ctx.fillStyle=textColor;
+      ctx.font=`bold ${Math.max(7,sR*0.48)}px Space Mono`;
+      ctx.textAlign='center';
+      ctx.fillText(decToNov(v),p.sx,p.sy+3);
+      // Indice vertice piccolo
+      if(sR>9){
+        ctx.fillStyle=`rgba(30,70,160,${depth*0.4})`;
+        ctx.font=`${Math.max(6,sR*0.3)}px Space Mono`;
+        ctx.fillText(`v${i}`,p.sx,p.sy-sR*0.55);
+      }
+    }
+  }
+
+  // Barra conservazione in fondo
+  const somma=matrix.reduce((a,b)=>a+b,0);
+  const ok=somma===13;
+  ctx.fillStyle=ok?'rgba(0,255,136,0.5)':'rgba(255,60,60,0.5)';
+  ctx.font='9px Space Mono';ctx.textAlign='center';
+  ctx.fillText(`\u03A3 = ${decToNov(somma)} (${somma}) ${ok?'\u2713':'\u2717'} `,W/2,H-18);
+
+  updateUI();
+  requestAnimationFrame(draw);
+}
+
+setConfig('A');
+draw();
+</script>
+</body>
+</html>

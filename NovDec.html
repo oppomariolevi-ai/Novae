@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Novabene — Come si Conta</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#020408;color:#c8d8ff;font-family:'Space Mono',monospace;min-height:100vh;padding:20px;}
+  h1{font-family:'Syne',sans-serif;font-weight:900;font-size:22px;letter-spacing:4px;color:#4a9eff;text-align:center;margin-bottom:4px;}
+  .tagline{text-align:center;font-size:9px;color:#1a2a4a;letter-spacing:3px;margin-bottom:24px;}
+  .section{background:rgba(4,10,30,0.95);border:1px solid #0d1a30;border-radius:10px;padding:18px;margin-bottom:18px;}
+  .sec-title{font-family:'Syne',sans-serif;font-size:13px;letter-spacing:3px;color:#4a9eff;margin-bottom:12px;border-bottom:1px solid #0d1a30;padding-bottom:6px;}
+  .sub{font-size:9px;color:#1a2a4a;letter-spacing:2px;margin-bottom:10px;}
+
+  .symbol-grid{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
+  .sym{display:flex;flex-direction:column;align-items:center;width:52px;padding:6px 4px;
+    border-radius:6px;border:1px solid #0d1a30;cursor:default;}
+  .sym:hover{border-color:#4a9eff;background:rgba(74,158,255,0.08);}
+  .sym .nov{font-size:14px;font-weight:700;color:#4a9eff;}
+  .sym .dec{font-size:9px;color:#1a2a4a;margin-top:2px;}
+  .sym .bar{height:3px;border-radius:2px;margin-top:4px;transition:width .2s;}
+  .sym.zero .nov{color:#88ff88;}
+  .sym.neg .nov{color:#ff6060;}
+
+  .counter-box{display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .counter-display{font-family:'Syne',sans-serif;font-size:48px;font-weight:900;color:#4a9eff;
+    min-width:200px;text-align:center;letter-spacing:4px;}
+  .counter-dec{font-size:12px;color:#1a2a4a;text-align:center;}
+  .counter-btns{display:flex;gap:8px;}
+  .cbtn{background:#0a1428;border:1px solid #1a3a8a;color:#4a9eff;padding:8px 16px;
+    border-radius:6px;cursor:pointer;font-family:monospace;font-size:12px;font-weight:700;}
+  .cbtn:hover{background:#1a3a8a;}
+  .counter-tape{display:flex;gap:4px;overflow-x:auto;padding:8px 0;max-width:100%;justify-content:center;flex-wrap:wrap;}
+  .tape-item{display:flex;flex-direction:column;align-items:center;padding:4px 6px;
+    border-radius:4px;border:1px solid #0d1a30;min-width:44px;}
+  .tape-item.current{border-color:#4a9eff;background:rgba(74,158,255,0.12);}
+  .tape-item .tn{font-size:11px;font-weight:700;color:#4a9eff;}
+  .tape-item .td{font-size:8px;color:#1a2a4a;}
+
+  .conv-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+  .conv-input{background:#0a1428;border:1px solid #1a3a8a;color:#4a9eff;
+    padding:8px 12px;border-radius:6px;font-family:monospace;font-size:14px;
+    width:120px;text-align:center;}
+  .conv-input:focus{outline:none;border-color:#4a9eff;}
+  .conv-arrow{color:#1a2a4a;font-size:18px;padding:0 4px;}
+  .conv-result{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;
+    color:#4a9eff;min-width:120px;text-align:center;}
+  .conv-note{font-size:9px;color:#1a2a4a;margin-top:4px;}
+
+  .add-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .add-col{display:flex;flex-direction:column;gap:6px;}
+  .add-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .add-input{background:#0a1428;border:1px solid #1a3a8a;color:#4a9eff;
+    padding:6px 10px;border-radius:5px;font-family:monospace;font-size:13px;
+    width:90px;text-align:center;}
+  .add-result-box{background:rgba(74,158,255,0.06);border:1px solid #1a3a8a;
+    border-radius:8px;padding:12px;margin-top:8px;}
+  .add-line{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:11px;}
+  .add-val{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#4a9eff;min-width:60px;}
+  .add-carry{color:#ff9050;font-size:10px;}
+  .add-label{color:#1a2a4a;font-size:9px;min-width:80px;}
+  .highlight{color:#00ff88;font-weight:700;}
+  .btn-calc{background:#0a1428;border:1px solid #1a3a8a;color:#4a9eff;
+    padding:7px 14px;border-radius:5px;cursor:pointer;font-family:monospace;
+    font-size:10px;font-weight:700;margin-top:6px;}
+  .btn-calc:hover{background:#1a3a8a;}
+
+  .table-wrap{overflow-x:auto;}
+  table{border-collapse:collapse;width:100%;font-size:10px;}
+  th{background:#0a2a6e;color:#fff;padding:6px 8px;text-align:center;font-family:'Syne',sans-serif;font-size:9px;letter-spacing:1px;}
+  td{padding:5px 8px;text-align:center;border-bottom:1px solid #0d1a30;}
+  tr:nth-child(even){background:rgba(74,158,255,0.04);}
+  td.nov{color:#4a9eff;font-weight:700;}
+  td.neg{color:#ff6060;font-weight:700;}
+  td.zero{color:#88ff88;font-weight:700;}
+
+  .rule{background:rgba(74,158,255,0.05);border-left:3px solid #4a9eff;
+    padding:8px 12px;margin:6px 0;border-radius:0 6px 6px 0;font-size:10px;line-height:1.8;}
+  .rule strong{color:#4a9eff;}
+
+  @media(max-width:600px){
+    .add-grid{grid-template-columns:1fr;}
+    .counter-display{font-size:36px;}
+  }
+</style>
+</head>
+<body>
+
+<h1>NOVABENE</h1>
+<div class="tagline">SISTEMA DI CONTEGGIO — GUIDA COMPLETA</div>
+
+<!-- SEZIONE 1: I SIMBOLI -->
+<div class="section">
+  <div class="sec-title">1. I 21 SIMBOLI</div>
+  <div class="sub">OGNI CIFRA NOVABENE (NIT) = SEGNO + CIFRA DECIMALE</div>
+  <div class="symbol-grid" id="symGrid"></div>
+</div>
+
+<!-- SEZIONE 2: CONTATORE INTERATTIVO -->
+<div class="section">
+  <div class="sec-title">2. CONTATORE INTERATTIVO</div>
+  <div class="sub">PREMI + E - PER CONTARE IN NOVABENE</div>
+  <div class="counter-box">
+    <div class="counter-display" id="cDisplay">&#8709;</div>
+    <div class="counter-dec" id="cDec">decimale: 0</div>
+    <div class="counter-btns">
+      <div class="cbtn" onclick="cStep(-10)">-10</div>
+      <div class="cbtn" onclick="cStep(-1)">&#8722;</div>
+      <div class="cbtn" onclick="cReset()">&#8635;</div>
+      <div class="cbtn" onclick="cStep(1)">+</div>
+      <div class="cbtn" onclick="cStep(10)">+10</div>
+    </div>
+    <div class="counter-tape" id="cTape"></div>
+  </div>
+</div>
+
+<!-- SEZIONE 3: CONVERTITORE -->
+<div class="section">
+  <div class="sec-title">3. CONVERTITORE DECIMALE &#8596; NOVABENE</div>
+  <div class="sub">INSERISCI UN NUMERO E PREMI INVIO</div>
+  <div class="conv-row">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <div style="font-size:9px;color:#1a2a4a;">DECIMALE</div>
+      <input class="conv-input" id="inpDec" type="number" value="42" onchange="convFromDec()">
+    </div>
+    <div class="conv-arrow">&#8594;</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <div style="font-size:9px;color:#1a2a4a;">NOVABENE</div>
+      <div class="conv-result" id="outNov">+31</div>
+    </div>
+  </div>
+  <div class="conv-row" style="margin-top:12px;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <div style="font-size:9px;color:#1a2a4a;">NOVABENE</div>
+      <input class="conv-input" id="inpNov" type="text" value="+31" onchange="convFromNov()">
+    </div>
+    <div class="conv-arrow">&#8594;</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <div style="font-size:9px;color:#1a2a4a;">DECIMALE</div>
+      <div class="conv-result" id="outDec">42</div>
+    </div>
+  </div>
+  <div class="conv-note" id="convNote"></div>
+  <div style="margin-top:12px;">
+    <div style="font-size:9px;color:#1a2a4a;margin-bottom:6px;">FORMULA:</div>
+    <div class="rule">
+      <strong>Decimale &#8594; Novabene:</strong> ogni cifra decimale d diventa (d-1) in Novabene.<br>
+      Esempio: 42 decimale &#8594; cifre 4,2 &#8594; Novabene +31 (4-1=3, 2-1=1)<br>
+      <strong>Caso speciale:</strong> se la cifra decimale &egrave; 0, diventa 9 con riporto -1.<br>
+      Esempio: 10 decimale &#8594; +09 Novabene (1&#215;10 + 0 = 10 dec = +09 nov)
+    </div>
+  </div>
+</div>
+
+<!-- SEZIONE 4: ADDIZIONE CARRY-FREE (CORRETTA) -->
+<div class="section">
+  <div class="sec-title">4. ADDIZIONE CARRY-FREE</div>
+  <div class="sub">IL RIPORTO &Egrave; SEMPRE &le; &plusmn;(+0) — MAI A CASCATA</div>
+  <div class="add-grid">
+    <div class="add-col">
+      <div style="font-size:9px;color:#1a2a4a;margin-bottom:4px;">INSERISCI DUE NUMERI NOVABENE:</div>
+      <div class="add-row">
+        <div style="font-size:10px;color:#1a2a4a;width:16px;">A:</div>
+        <input class="add-input" id="addA" value="+5" oninput="calcAdd()">
+        <div style="font-size:9px;color:#1a2a4a;" id="addAdec">(dec: 6)</div>
+      </div>
+      <div class="add-row">
+        <div style="font-size:10px;color:#1a2a4a;width:16px;">B:</div>
+        <input class="add-input" id="addB" value="+7" oninput="calcAdd()">
+        <div style="font-size:9px;color:#1a2a4a;" id="addBdec">(dec: 8)</div>
+      </div>
+    </div>
+    <div class="add-col">
+      <div class="add-result-box" id="addResult"></div>
+    </div>
+  </div>
+  <div style="margin-top:12px;">
+    <div class="rule">
+      <strong>Regola addizione Novabene:</strong><br>
+      S = A + B (in decimale)<br>
+      &bull; Se -10 &le; S &le; +10 &#8594; risultato = Novabene(S), riporto = &empty;<br>
+      &bull; Se S &gt; +10 &#8594; risultato = Novabene(S), riporto = <strong>+0</strong><br>
+      &bull; Se S &lt; -10 &#8594; risultato = Novabene(S), riporto = <strong>-0</strong><br>
+      Il riporto non si propaga mai: addizione parallela su tutte le cifre!
+    </div>
+  </div>
+</div>
+
+<!-- SEZIONE 5: TABELLA DI RIFERIMENTO -->
+<div class="section">
+  <div class="sec-title">5. TABELLA DI RIFERIMENTO</div>
+  <div class="sub">CONFRONTO DECIMALE — NOVABENE — BINARIO</div>
+  <div class="table-wrap">
+    <table id="refTable"><tr>
+  </div>
+</div>
+
+<!-- SEZIONE 6: REGOLE FONDAMENTALI -->
+<div class="section">
+  <div class="sec-title">6. REGOLE FONDAMENTALI</div>
+  <div class="rule"><strong>Struttura:</strong> Una cifra Novabene (nit) = (segno, cifra) dove segno &isin; {&empty;, -, +} e cifra &isin; {0,...,9}. Vincolo: se segno = &empty; allora cifra = 0.</div>
+  <div class="rule"><strong>I tre zeri:</strong> &empty; = vero zero (annichilazione), -0 = -1 (antiparticella), +0 = +1 (particella). Solo &empty; rende la divisione indefinita.</div>
+  <div class="rule"><strong>Conteggio:</strong> &empty;, +0, +1, +2, ..., +9, +00, +01, ... Il sistema &egrave; posizionale base-10 con segno intrinseco.</div>
+  <div class="rule"><strong>Carry-free:</strong> L'addizione non propaga mai riporto a cascata. Tutte le cifre si sommano in parallelo. Vantaggio computazionale su hardware parallelo.</div>
+  <div class="rule"><strong>Mappatura fisica:</strong> +0 = particella, -0 = antiparticella, &empty; = transizione/annichilazione. La notazione ha significato fisico diretto.</div>
+  <div class="rule"><strong>21 simboli:</strong> 1 (&empty;) + 10 (da -0 a -9) + 10 (da +0 a +9) = 21. Ogni simbolo trasporta 4.39 bit di informazione vs 1 bit del binario.</div>
+</div>
+
+<script>
+// ── CONVERSIONI ───────────────────────────────────────────────
+function decToNov(n){
+  n=Math.round(n);
+  if(n===0) return '\u2205';
+  const sign=n>0?'+':'-';
+  let nabs=Math.abs(n);
+  const digits=[];
+  while(nabs>0){
+    const r=nabs%10;
+    if(r===0){digits.push('9');nabs=(nabs-10)/10;}
+    else{digits.push(String(r-1));nabs=(nabs-r)/10;}
+  }
+  return sign+digits.reverse().join('');
+}
+
+function novToDec(s){
+  s=s.trim();
+  if(s==='\u2205'||s==='O'||s==='∅') return 0;
+  if(!s.match(/^[+\-][0-9]+$/)) return NaN;
+  const sign=s[0]==='+'?1:-1;
+  const digits=s.slice(1).split('');
+  let val=0;
+  for(let i=0;i<digits.length;i++){
+    val+=(parseInt(digits[i])+1)*Math.pow(10,digits.length-1-i);
+  }
+  return sign*val;
+}
+
+// ── SEZIONE 1: SIMBOLI ────────────────────────────────────────
+function buildSymbols(){
+  const grid=document.getElementById('symGrid');
+  // ∅
+  const s0=document.createElement('div');
+  s0.className='sym zero';
+  s0.innerHTML=`<div class="nov">\u2205</div><div class="dec">0</div><div class="bar" style="width:100%;background:#88ff88;opacity:.4"></div>`;
+  grid.appendChild(s0);
+  // -9 to -0
+  for(let d=9;d>=0;d--){
+    const dec=-(d+1);
+    const nov=d===0?'-0':`-${d}`;
+    const pct=((d+1)/10*100).toFixed(0);
+    const s=document.createElement('div');
+    s.className='sym neg';
+    s.innerHTML=`<div class="nov">${nov}</div><div class="dec">${dec}</div><div class="bar" style="width:${pct}%;background:#ff6060;opacity:.5"></div>`;
+    grid.appendChild(s);
+  }
+  // +0 to +9
+  for(let d=0;d<=9;d++){
+    const dec=d+1;
+    const nov=d===0?'+0':`+${d}`;
+    const pct=((d+1)/10*100).toFixed(0);
+    const s=document.createElement('div');
+    s.className='sym';
+    s.innerHTML=`<div class="nov">${nov}</div><div class="dec">+${dec}</div><div class="bar" style="width:${pct}%;background:#4a9eff;opacity:.6"></div>`;
+    grid.appendChild(s);
+  }
+}
+
+// ── SEZIONE 2: CONTATORE ──────────────────────────────────────
+let cVal=0;
+const TAPE_RANGE=10;
+
+function novLabel(n){
+  if(n===0) return '\u2205';
+  return decToNov(n);
+}
+
+function buildTape(){
+  const tape=document.getElementById('cTape');
+  tape.innerHTML='';
+  for(let i=Math.max(-5,cVal-TAPE_RANGE);i<=cVal+TAPE_RANGE;i++){
+    const div=document.createElement('div');
+    div.className='tape-item'+(i===cVal?' current':'');
+    div.innerHTML=`<div class="tn">${novLabel(i)}</div><div class="td">${i}</div>`;
+    tape.appendChild(div);
+  }
+  setTimeout(()=>{
+    const cur=tape.querySelector('.current');
+    if(cur) cur.scrollIntoView({block:'nearest',inline:'center'});
+  },10);
+}
+
+function updateCounter(){
+  document.getElementById('cDisplay').textContent=novLabel(cVal);
+  document.getElementById('cDec').textContent=`decimale: ${cVal}`;
+  buildTape();
+}
+
+function cStep(n){cVal=Math.max(-99,Math.min(999,cVal+n));updateCounter();}
+function cReset(){cVal=0;updateCounter();}
+
+// ── SEZIONE 3: CONVERTITORE ───────────────────────────────────
+function convFromDec(){
+  const d=parseInt(document.getElementById('inpDec').value)||0;
+  const nov=decToNov(d);
+  document.getElementById('outNov').textContent=nov;
+  document.getElementById('inpNov').value=nov;
+  document.getElementById('outDec').textContent=d;
+  showConvNote(d,nov);
+}
+
+function convFromNov(){
+  const s=document.getElementById('inpNov').value.trim();
+  const d=novToDec(s);
+  if(isNaN(d)){
+    document.getElementById('outDec').textContent='ERRORE';
+    return;
+  }
+  document.getElementById('outDec').textContent=d;
+  document.getElementById('inpDec').value=d;
+  showConvNote(d,s);
+}
+
+function showConvNote(dec,nov){
+  let note='';
+  if(dec===0) note='&#8709; = vero zero — unico divisore indefinito';
+  else if(dec===-1) note='-0 = antiparticella (esiste ma con segno negativo)';
+  else if(dec===1) note='+0 = particella (esiste con segno positivo)';
+  else if(dec>0) note=`${nov}: ogni cifra vale (cifra+1) — sistema posizionale`;
+  document.getElementById('convNote').innerHTML=note;
+}
+
+// ── SEZIONE 4: ADDIZIONE (CORRETTA) ───────────────────────────
+function calcAdd(){
+  const aNov=document.getElementById('addA').value.trim();
+  const bNov=document.getElementById('addB').value.trim();
+  const a=novToDec(aNov);
+  const b=novToDec(bNov);
+
+  document.getElementById('addAdec').textContent=
+    isNaN(a)?'(errore)':`(dec: ${a})`;
+  document.getElementById('addBdec').textContent=
+    isNaN(b)?'(errore)':`(dec: ${b})`;
+
+  if(isNaN(a)||isNaN(b)){
+    document.getElementById('addResult').innerHTML=
+      '<div style="color:#ff6060;font-size:10px;">Formato non valido</div>';
+    return;
+  }
+
+  const S=a+b;
+  let risultato, riporto, riportoDec;
+
+  // REGOLA CORRETTA: il risultato è sempre decToNov(S)
+  // Il riporto è ∅ se |S|≤10, altrimenti +0 o -0
+  risultato=decToNov(S);
+  if(S>=-10 && S<=10){
+    riporto='\u2205'; riportoDec=0;
+  } else if(S>10){
+    riporto='+0'; riportoDec=1;
+  } else {
+    riporto='-0'; riportoDec=-1;
+  }
+
+  const html=`
+    <div class="add-line">
+      <div class="add-label">A (${a}):</div>
+      <div class="add-val">${aNov}</div>
+    </div>
+    <div class="add-line">
+      <div class="add-label">B (${b}):</div>
+      <div class="add-val">${bNov}</div>
+    </div>
+    <div style="border-top:1px solid #1a3a8a;margin:4px 0;"></div>
+    <div class="add-line">
+      <div class="add-label">S decimale:</div>
+      <div class="add-val" style="color:#c8d8ff;">${S}</div>
+    </div>
+    <div class="add-line">
+      <div class="add-label">Risultato:</div>
+      <div class="add-val highlight">${risultato}</div>
+    </div>
+    <div class="add-line">
+      <div class="add-label">Riporto:</div>
+      <div class="add-val add-carry">${riporto} ${riportoDec!==0?'('+riportoDec+')':''}</div>
+    </div>
+    <div style="border-top:1px solid #1a3a8a;margin:4px 0;"></div>
+    <div class="add-line" style="font-size:9px;color:#1a2a4a;">
+      ${S>10?'S > +10: risultato = Novabene(S) con riporto +0':
+        S<-10?'S < -10: risultato = Novabene(S) con riporto -0':
+        '-10 ≤ S ≤ +10: nessun riporto'}
+    </div>
+  `;
+  document.getElementById('addResult').innerHTML=html;
+}
+
+// ── SEZIONE 5: TABELLA ────────────────────────────────────────
+function buildTable(){
+  const table=document.getElementById('refTable');
+  const entries=[
+    [-5,'',''],
+    [-4,'',''],
+    [-3,'',''],
+    [-2,'',''],
+    [-1,'','Antiparticella'],
+    [0,'','Vero zero'],
+    [1,'','Particella'],
+    [2,'',''],
+    [3,'',''],
+    [4,'',''],
+    [5,'',''],
+    [6,'',''],
+    [7,'',''],
+    [8,'',''],
+    [9,'',''],
+    [10,'',''],
+    [11,'','Prima cifra a 2 nit'],
+    [12,'',''],
+    [13,'','+02 = sfera frattale'],
+    [20,'',''],
+    [21,'','21 simboli Novabene'],
+    [42,'',''],
+    [100,'',''],
+    [110,'','+99 = max 2 cifre'],
+  ];
+
+  // Header
+  const thead=document.createElement('thead');
+  const hrow=document.createElement('tr');
+  ['Decimale','Novabene','Binario','Note'].forEach(h=>{
+    const th=document.createElement('th');th.textContent=h;hrow.appendChild(th);
+  });
+  thead.appendChild(hrow);table.appendChild(thead);
+
+  const tbody=document.createElement('tbody');
+  entries.forEach(([dec,, note])=>{
+    const nov=decToNov(dec);
+    const bin=dec>=0?dec.toString(2):`-${Math.abs(dec).toString(2)}`;
+    const tr=document.createElement('tr');
+    const tdDec=document.createElement('td');tdDec.textContent=dec;
+    const tdNov=document.createElement('td');
+    tdNov.textContent=nov;
+    tdNov.className=dec===0?'zero':dec<0?'neg':'nov';
+    const tdBin=document.createElement('td');tdBin.textContent=bin;tdBin.style.color='#1a2a4a';
+    const tdNote=document.createElement('td');tdNote.textContent=note;tdNote.style.color='#1a3a8a';tdNote.style.fontSize='9px';
+    tr.appendChild(tdDec);tr.appendChild(tdNov);tr.appendChild(tdBin);tr.appendChild(tdNote);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+buildSymbols();
+updateCounter();
+convFromDec();
+calcAdd();
+buildTable();
+</script>
+</body>
+</html>

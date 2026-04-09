@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Novabene - Frattale Icosaedrica a 2 Livelli</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Courier New', monospace; background: #020408; color: #c8d8ff; }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 12px;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 10;
+            font-size: 12px;
+            backdrop-filter: blur(5px);
+            border: 1px solid #1a3a8a;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.85);
+            padding: 12px;
+            border-radius: 12px;
+            z-index: 20;
+            pointer-events: auto;
+            backdrop-filter: blur(5px);
+            border: 1px solid #1a3a8a;
+            font-size: 12px;
+            max-height: 40%;
+            overflow-y: auto;
+        }
+        .panel {
+            background: rgba(10,20,40,0.9);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .panel-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 14px;
+            letter-spacing: 2px;
+            color: #4a9eff;
+            border-bottom: 1px solid #1a3a8a;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+        }
+        .cell-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .cell-card {
+            background: #0a1020;
+            border: 1px solid #1a3a8a;
+            border-radius: 6px;
+            padding: 6px;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .cell-card:hover {
+            border-color: #4a9eff;
+            background: rgba(74,158,255,0.1);
+        }
+        .cell-card.selected {
+            border-color: #88ff88;
+            background: rgba(136,255,136,0.1);
+        }
+        .cell-label {
+            font-size: 10px;
+            color: #1a2a4a;
+            margin-bottom: 4px;
+        }
+        .cell-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #4a9eff;
+            text-align: center;
+        }
+        .subcell-panel {
+            background: rgba(0,0,0,0.6);
+            border-radius: 8px;
+            padding: 8px;
+            margin-top: 8px;
+        }
+        .subcell-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .subcell-input {
+            width: 50px;
+            background: #0a1428;
+            border: 1px solid #1a3a8a;
+            color: #4a9eff;
+            padding: 4px;
+            border-radius: 4px;
+            text-align: center;
+            font-family: monospace;
+        }
+        .subcell-label {
+            font-size: 9px;
+            color: #1a2a4a;
+            min-width: 30px;
+        }
+        button {
+            background: #0a1428;
+            border: 1px solid #1a3a8a;
+            color: #4a9eff;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: monospace;
+            margin-top: 5px;
+        }
+        button:hover {
+            background: #1a3a8a;
+        }
+        .sum-indicator {
+            font-size: 14px;
+            font-weight: bold;
+            color: #88ff88;
+        }
+        .warning {
+            color: #ff8888;
+        }
+        @media (max-width: 600px) {
+            .cell-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+            .cell-value { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+<div id="info">
+    <strong>NOVABENE</strong> | Frattale Icosaedrica 13×13<br>
+    Somma celle esterne: <span id="globalSum">0</span> / 13
+</div>
+<div id="controls">
+    <div class="panel">
+        <div class="panel-title">Celle dell'icosaedro (livello 1)</div>
+        <div class="cell-grid" id="outerGrid"></div>
+    </div>
+    <div class="panel" id="subcellPanel" style="display:none;">
+        <div class="panel-title">Sottocelle (livello 0) per cella <span id="selectedCellIdx"></span></div>
+        <div id="subcellList"></div>
+        <button id="closeSubcellBtn">Chiudi</button>
+    </div>
+</div>
+
+<!-- Three.js per visualizzazione 3D dell'icosaedro -->
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
+        }
+    }
+</script>
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'https://unpkg.com/three@0.128.0/examples/jsm/controls/OrbitControls.js';
+
+    // ------------------------------------------------------------
+    // 1. Geometria icosaedrica (13 nodi: centro + 12 vertici)
+    // ------------------------------------------------------------
+    const phi = (1 + Math.sqrt(5)) / 2;
+    const rawVertices = [
+        [0, 1, phi], [0, 1, -phi], [0, -1, phi], [0, -1, -phi],
+        [1, phi, 0], [1, -phi, 0], [-1, phi, 0], [-1, -phi, 0],
+        [phi, 0, 1], [phi, 0, -1], [-phi, 0, 1], [-phi, 0, -1]
+    ];
+    // Normalizza a distanza 2 dal centro (per kissing number)
+    const norm = (v) => {
+        const len = Math.hypot(v[0], v[1], v[2]);
+        return [v[0]/len * 2, v[1]/len * 2, v[2]/len * 2];
+    };
+    const vertices = rawVertices.map(v => norm(v));
+    const center = [0,0,0];
+    const allPositions = [center, ...vertices];  // 13 nodi
+
+    // ------------------------------------------------------------
+    // 2. Stato: per ogni cella esterna (13) memorizziamo:
+    //    - valore esterno (somma delle sottocelle)
+    //    - array di 13 sottocelle (valori interi -10..10)
+    // ------------------------------------------------------------
+    let outerValues = new Array(13).fill(0);
+    let subcellValues = Array(13).fill().map(() => new Array(13).fill(0));
+    let selectedOuterIdx = null;
+
+    // Inizializza: distribuzione casuale che rispetta somma totale 13
+    // Prima generiamo 13 valori esterni casuali (interi -10..10) la cui somma = 13
+    function randomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function generateRandomOuterSum13() {
+        // Algoritmo: genera 13 numeri interi con somma 13, range -10..10
+        // Metodo: generare 12 numeri casuali e l'ultimo = 13 - sum, poi aggiusta
+        let values = new Array(13);
+        let sum = 0;
+        for (let i = 0; i < 12; i++) {
+            let v = randomInt(-10, 10);
+            values[i] = v;
+            sum += v;
+        }
+        let last = 13 - sum;
+        if (last < -10 || last > 10) {
+            // fallback: distribuzione uniforme di 1
+            for (let i = 0; i < 13; i++) values[i] = 0;
+            values[0] = 13;
+        } else {
+            values[12] = last;
+        }
+        return values;
+    }
+
+    // Genera sottocelle per una data cella esterna: devono sommare al valore esterno
+    function generateSubcellsForOuter(outerVal) {
+        let subs = new Array(13).fill(0);
+        let sum = 0;
+        for (let i = 0; i < 12; i++) {
+            let v = randomInt(-10, 10);
+            subs[i] = v;
+            sum += v;
+        }
+        let last = outerVal - sum;
+        if (last < -10 || last > 10) {
+            // fallback: distribuzione uniforme di 0, poi aggiusta
+            for (let i = 0; i < 13; i++) subs[i] = 0;
+            if (outerVal >= -10 && outerVal <= 10) subs[0] = outerVal;
+            else subs[0] = 0;
+        } else {
+            subs[12] = last;
+        }
+        return subs;
+    }
+
+    // Inizializza intero sistema
+    function initRandom() {
+        outerValues = generateRandomOuterSum13();
+        for (let i = 0; i < 13; i++) {
+            subcellValues[i] = generateSubcellsForOuter(outerValues[i]);
+        }
+        updateUI();
+    }
+
+    // Aggiorna i valori esterni dalla somma delle sottocelle (ricalcola)
+    function recomputeOuterFromSubcells() {
+        for (let i = 0; i < 13; i++) {
+            let s = 0;
+            for (let j = 0; j < 13; j++) {
+                s += subcellValues[i][j];
+            }
+            outerValues[i] = s;
+        }
+    }
+
+    // Verifica se la somma globale è 13
+    function globalSum() {
+        return outerValues.reduce((a,b)=>a+b,0);
+    }
+
+    // ------------------------------------------------------------
+    // 3. UI e rendering 3D
+    // ------------------------------------------------------------
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020408);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(4, 3, 5);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // Luci
+    const ambientLight = new THREE.AmbientLight(0x404060);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(1,2,1);
+    scene.add(dirLight);
+    const backLight = new THREE.DirectionalLight(0x88aaff, 0.5);
+    backLight.position.set(-1,-1,-0.5);
+    scene.add(backLight);
+
+    // Wireframe icosaedro (opzionale)
+    const icoGeo = new THREE.IcosahedronGeometry(2, 0);
+    const wireframeMat = new THREE.LineBasicMaterial({ color: 0x1a3a8a });
+    const wireframe = new THREE.LineSegments(new THREE.EdgesGeometry(icoGeo), wireframeMat);
+    scene.add(wireframe);
+
+    // Sfere per i 13 nodi
+    const sphereMeshes = [];
+    const sphereColors = [0x88ff88, 0x4a9eff, 0x4a9eff, 0x4a9eff, 0x4a9eff, 0x4a9eff, 0x4a9eff, 0x4a9eff, 0x4a9eff, 0x4a9eff, 0x4a9eff, 0x4a9eff, 0x4a9eff];
+    for (let i = 0; i < 13; i++) {
+        const pos = allPositions[i];
+        const geometry = new THREE.SphereGeometry(0.18, 32, 32);
+        const material = new THREE.MeshStandardMaterial({ color: sphereColors[i], emissive: 0x112233 });
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.set(pos[0], pos[1], pos[2]);
+        scene.add(sphere);
+        sphereMeshes.push(sphere);
+    }
+
+    // Etichette testuali (usando canvas texture per semplicità)
+    function createLabel(text, color, pos) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'rgba(0,0,0,0)';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.font = 'Bold 20px "Courier New"';
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.fillText(text, 32, 32);
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(material);
+        sprite.position.set(pos[0], pos[1] + 0.25, pos[2]);
+        sprite.scale.set(0.5, 0.5, 0.5);
+        scene.add(sprite);
+        return sprite;
+    }
+
+    let labels = [];
+    function updateLabels() {
+        labels.forEach(l => scene.remove(l));
+        labels = [];
+        for (let i = 0; i < 13; i++) {
+            const val = outerValues[i];
+            const nov = (val === 0) ? '∅' : (val > 0 ? `+${val}` : `${val}`);
+            const color = (val === 0) ? '#88ff88' : (val > 0 ? '#4a9eff' : '#ff6060');
+            const label = createLabel(nov, color, allPositions[i]);
+            labels.push(label);
+        }
+    }
+
+    // Aggiorna pannello UI delle celle esterne
+    const outerGrid = document.getElementById('outerGrid');
+    const subcellPanel = document.getElementById('subcellPanel');
+    const subcellList = document.getElementById('subcellList');
+    const selectedCellIdxSpan = document.getElementById('selectedCellIdx');
+    const globalSumSpan = document.getElementById('globalSum');
+
+    function renderOuterGrid() {
+        outerGrid.innerHTML = '';
+        for (let i = 0; i < 13; i++) {
+            const val = outerValues[i];
+            const nov = (val === 0) ? '∅' : (val > 0 ? `+${val}` : `${val}`);
+            const card = document.createElement('div');
+            card.className = 'cell-card' + (selectedOuterIdx === i ? ' selected' : '');
+            card.innerHTML = `
+                <div class="cell-label">Cella ${i} (${i===0?'centro':'v'+(i)})</div>
+                <div class="cell-value">${nov}</div>
+            `;
+            card.onclick = () => openSubcellPanel(i);
+            outerGrid.appendChild(card);
+        }
+        globalSumSpan.innerText = globalSum();
+        if (globalSum() !== 13) globalSumSpan.style.color = '#ff8888';
+        else globalSumSpan.style.color = '#88ff88';
+    }
+
+    function openSubcellPanel(idx) {
+        selectedOuterIdx = idx;
+        renderOuterGrid();
+        selectedCellIdxSpan.innerText = `${idx} (${idx===0?'centro':'vertice '+(idx)})`;
+        subcellList.innerHTML = '';
+        const subs = subcellValues[idx];
+        for (let j = 0; j < 13; j++) {
+            const subVal = subs[j];
+            const nov = (subVal === 0) ? '∅' : (subVal > 0 ? `+${subVal}` : `${subVal}`);
+            const row = document.createElement('div');
+            row.className = 'subcell-row';
+            row.innerHTML = `
+                <span class="subcell-label">sottocella ${j}:</span>
+                <input class="subcell-input" type="number" min="-10" max="10" value="${subVal}" data-subidx="${j}">
+                <span class="subcell-nov" style="font-size:9px;color:#1a2a4a;">${nov}</span>
+            `;
+            const input = row.querySelector('input');
+            input.addEventListener('change', (e) => {
+                let newVal = parseInt(e.target.value);
+                if (isNaN(newVal)) newVal = 0;
+                newVal = Math.max(-10, Math.min(10, newVal));
+                subcellValues[idx][j] = newVal;
+                // Ricalcola il valore esterno
+                let sum = 0;
+                for (let k = 0; k < 13; k++) sum += subcellValues[idx][k];
+                outerValues[idx] = sum;
+                // Aggiorna la visualizzazione
+                updateLabels();
+                renderOuterGrid();
+                // Aggiorna la riga corrente per mostrare il simbolo Novabene
+                const novSpan = row.querySelector('.subcell-nov');
+                const newNov = (newVal === 0) ? '∅' : (newVal > 0 ? `+${newVal}` : `${newVal}`);
+                novSpan.innerText = newNov;
+            });
+            subcellList.appendChild(row);
+        }
+        subcellPanel.style.display = 'block';
+    }
+
+    document.getElementById('closeSubcellBtn').onclick = () => {
+        subcellPanel.style.display = 'none';
+        selectedOuterIdx = null;
+        renderOuterGrid();
+    };
+
+    // Pulsante per randomizzare tutto (mantenendo somma globale 13)
+    function randomizeAll() {
+        outerValues = generateRandomOuterSum13();
+        for (let i = 0; i < 13; i++) {
+            subcellValues[i] = generateSubcellsForOuter(outerValues[i]);
+        }
+        updateLabels();
+        renderOuterGrid();
+        if (selectedOuterIdx !== null) openSubcellPanel(selectedOuterIdx);
+    }
+
+    // Aggiungi un pulsante di reset
+    const btnReset = document.createElement('button');
+    btnReset.textContent = 'Randomizza tutto (somma 13)';
+    btnReset.style.marginTop = '10px';
+    btnReset.onclick = randomizeAll;
+    document.querySelector('#controls .panel:first-child').appendChild(btnReset);
+
+    // Animazione
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // Inizializza
+    initRandom();
+    updateLabels();
+    renderOuterGrid();
+</script>
+</body>
+</html>

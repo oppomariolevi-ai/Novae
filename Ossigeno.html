@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Novabene — ¹⁶O</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#03050f; color:#d0dcff; font-family:'Space Mono',monospace; overflow:hidden; height:100vh; display:flex; flex-direction:column; }
+  header { padding:12px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #111830; background:rgba(3,5,15,0.97); z-index:10; }
+  .title { font-family:'Syne',sans-serif; font-weight:800; font-size:16px; letter-spacing:3px; color:#6aaeff; }
+  .subtitle { font-size:9px; color:#303860; letter-spacing:1px; margin-top:2px; }
+  .stats { display:flex; gap:14px; }
+  .stat { text-align:center; }
+  .stat-val { font-size:15px; font-weight:700; color:#6aaeff; font-family:'Syne',sans-serif; }
+  .stat-label { color:#303860; font-size:9px; letter-spacing:1px; }
+  #canvas { flex:1; display:block; cursor:grab; }
+  #canvas:active { cursor:grabbing; }
+  .legend { position:absolute; bottom:16px; left:20px; font-size:10px; color:#303860; line-height:2.2; background:rgba(3,5,15,0.85); padding:8px 12px; border-radius:8px; }
+  .legend span { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .zoom-btns { position:absolute; bottom:70px; right:20px; display:flex; flex-direction:column; gap:6px; }
+  .zoom-btn { background:rgba(20,30,60,0.95); border:1px solid #1a2848; color:#6aaeff; font-size:18px; width:36px; height:36px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800; user-select:none; }
+  .zoom-btn:active { background:rgba(40,70,140,0.95); }
+  .controls { position:absolute; bottom:16px; right:20px; font-size:10px; color:#303860; text-align:right; line-height:2; background:rgba(3,5,15,0.85); padding:8px 12px; border-radius:8px; }
+  .info { position:absolute; top:68px; right:20px; background:rgba(3,5,15,0.95); border:1px solid #111830; padding:14px; font-size:10px; line-height:2.2; min-width:200px; border-radius:8px; }
+  .info-title { font-family:'Syne',sans-serif; color:#6aaeff; font-size:11px; letter-spacing:1px; margin-bottom:6px; }
+  .info-row { display:flex; justify-content:space-between; gap:12px; }
+  .info-val { color:#6aaeff; }
+  .einfo { position:absolute; top:68px; left:20px; background:rgba(3,5,15,0.95); border:1px solid #111830; padding:14px; font-size:10px; line-height:1.9; border-radius:8px; min-width:185px; }
+  .e-title { font-family:'Syne',sans-serif; font-size:11px; letter-spacing:1px; margin-bottom:3px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="title">NOVABENE — ¹⁶O</div>
+    <div class="subtitle">NUCLEO FCC 16 · 17 SHELL 1 · 28 SHELL 2 · PROPORZIONE FISICA</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-val">16</div><div class="stat-label">NUCLEO FCC</div></div>
+    <div class="stat"><div class="stat-val">17</div><div class="stat-label">SHELL 1</div></div>
+    <div class="stat"><div class="stat-val">28</div><div class="stat-label">SHELL 2</div></div>
+    <div class="stat"><div class="stat-val">8e⁻</div><div class="stat-label">ELETTRONI</div></div>
+  </div>
+</header>
+<canvas id="canvas"></canvas>
+<div class="legend">
+  <div><span style="background:#ff4040"></span> Protone (+1-0) x8</div>
+  <div><span style="background:#4488ff"></span> Neutrone (-1+0) x8</div>
+  <div><span style="background:#ff9050"></span> e- shell 1 x2 (spin +-0)</div>
+  <div><span style="background:#dc50ff"></span> e- shell 2 x6 (spin +-0)</div>
+</div>
+<div class="zoom-btns">
+  <div class="zoom-btn" id="zoomIn">+</div>
+  <div class="zoom-btn" id="zoomOut">-</div>
+</div>
+<div class="controls">DRAG -- ruota<br>SCROLL/PINCH -- zoom</div>
+<div class="info">
+  <div class="info-title">STRUTTURA 16O</div>
+  <div class="info-row"><span>Nucleo</span><span class="info-val">16 sfere FCC</span></div>
+  <div class="info-row"><span>Shell 1</span><span class="info-val">17 sfere x 2e-</span></div>
+  <div class="info-row"><span>Shell 2</span><span class="info-val">28 sfere x 6e-</span></div>
+  <div class="info-row"><span>Pauli</span><span class="info-val" id="paulistat">OK</span></div>
+  <div class="info-row"><span>Mosse nucleo</span><span class="info-val" id="mc">0</span></div>
+</div>
+<div class="einfo">
+  <div class="e-title" style="color:#ff9050">SHELL 1 (2e-)</div>
+  <div id="e1a" style="color:#ff9050;font-size:9px;">e1: --</div>
+  <div id="e1b" style="color:#ff9050;font-size:9px;">e2: --</div>
+  <div class="e-title" style="color:#dc50ff;margin-top:5px;">SHELL 2 (6e-)</div>
+  <div id="e2a" style="color:#dc50ff;font-size:9px;">e3: --</div>
+  <div id="e2b" style="color:#dc50ff;font-size:9px;">e4: --</div>
+  <div id="e2c" style="color:#dc50ff;font-size:9px;">e5: --</div>
+  <div id="e2d" style="color:#dc50ff;font-size:9px;">e6: --</div>
+  <div id="e2e" style="color:#dc50ff;font-size:9px;">e7: --</div>
+  <div id="e2f" style="color:#dc50ff;font-size:9px;">e8: --</div>
+</div>
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=canvas.offsetWidth;H=canvas.height=canvas.offsetHeight;}
+resize();window.addEventListener('resize',resize);
+
+// NUCLEO FCC 16 sfere
+const nucRaw=[[0,0,0],[0.5,-0.5,0],[0,0.5,-0.5],[0,0.5,0.5],[0,-0.5,-0.5],[0,-0.5,0.5],[-0.5,0.5,0],[0.5,0.5,0],[-0.5,0,-0.5],[-0.5,0,0.5],[0.5,0,-0.5],[0.5,0,0.5],[-0.5,-0.5,0],[-1,0,0],[0,0,1],[1,0,0]];
+const nucSpheres=nucRaw.map((p,i)=>({x:p[0],y:p[1],z:p[2],type:i%2===0?'p':'n'}));
+
+function makeQuarks(isP){
+  return isP?[
+    {x:0,y:0,z:0,vx:.5,vy:.4,vz:.3,type:'u',color:'#ff6060'},
+    {x:.15,y:-.1,z:.08,vx:-.3,vy:.6,vz:-.2,type:'u',color:'#50c8ff'},
+    {x:-.1,y:.15,z:-.08,vx:.25,vy:-.4,vz:.45,type:'d',color:'#00ff00'},
+  ]:[
+    {x:0,y:0,z:0,vx:.5,vy:.4,vz:.3,type:'u',color:'#ff6060'},
+    {x:.15,y:-.1,z:.08,vx:-.3,vy:.6,vz:-.2,type:'d',color:'#50c8ff'},
+    {x:-.1,y:.15,z:-.08,vx:.25,vy:-.4,vz:.45,type:'d',color:'#00ff00'},
+  ];
+}
+const nucQuarks=nucSpheres.map(s=>makeQuarks(s.type==='p'));
+
+function updateQuarks(qs){
+  for(const q of qs){
+    q.x+=q.vx*.018;q.y+=q.vy*.018;q.z+=q.vz*.018;
+    const r=Math.sqrt(q.x**2+q.y**2+q.z**2);
+    if(r>.35){q.vx+=(Math.random()-.5)*.35-q.x*.5;q.vy+=(Math.random()-.5)*.35-q.y*.5;q.vz+=(Math.random()-.5)*.35-q.z*.5;}
+    q.vx+=(Math.random()-.5)*.07;q.vy+=(Math.random()-.5)*.07;q.vz+=(Math.random()-.5)*.07;
+    const v=Math.sqrt(q.vx**2+q.vy**2+q.vz**2);
+    if(v>1.1){q.vx/=v/1.1;q.vy/=v/1.1;q.vz/=v/1.1;}
+  }
+}
+
+// Movimento entropico nucleo
+let moveCount=0;
+function stepNucleus(){
+  // Vibrazione casuale piccola
+  for(const s of nucSpheres){
+    if(Math.random()<0.3){
+      s.x+=(Math.random()-.5)*.05;
+      s.y+=(Math.random()-.5)*.05;
+      s.z+=(Math.random()-.5)*.05;
+      // Riporta verso posizione originale
+      const r=Math.sqrt(s.x**2+s.y**2+s.z**2);
+      if(r>1.5){s.x*=1.4/r;s.y*=1.4/r;s.z*=1.4/r;}
+    }
+  }
+  moveCount++;
+}
+
+// SHELL 1: 17 sfere fibonacci
+function fibSphere(n,radius){
+  const pts=[];const g=Math.PI*(3-Math.sqrt(5));
+  for(let i=0;i<n;i++){
+    const y=1-(i/(n-1))*2;const r=Math.sqrt(1-y*y);const t=g*i;
+    pts.push({x:Math.cos(t)*r*radius,y:y*radius,z:Math.sin(t)*r*radius});
+  }
+  return pts;
+}
+const shell1=fibSphere(17,2.2);
+const shell2=fibSphere(28,3.4);
+
+// Adiacenze per percorso elettroni
+function buildAdj(positions,maxDist){
+  return positions.map((p,i)=>positions.map((_,j)=>j).filter(j=>{
+    if(j===i)return false;
+    const dx=positions[j].x-p.x,dy=positions[j].y-p.y,dz=positions[j].z-p.z;
+    return Math.sqrt(dx*dx+dy*dy+dz*dz)<maxDist;
+  }));
+}
+// Per fibonacci sphere la distanza tra adiacenti varia
+// Calcola distanza media vicini per shell1 e shell2
+function avgNearDist(positions){
+  const dists=[];
+  for(let i=0;i<positions.length;i++){
+    const d=positions.map((p,j)=>{if(j===i)return Infinity;const dx=p.x-positions[i].x,dy=p.y-positions[i].y,dz=p.z-positions[i].z;return Math.sqrt(dx*dx+dy*dy+dz*dz);}).sort((a,b)=>a-b);
+    dists.push(d[0]);
+  }
+  return dists.reduce((a,b)=>a+b)/dists.length*2.2;
+}
+const adj1=buildAdj(shell1,avgNearDist(shell1));
+const adj2=buildAdj(shell2,avgNearDist(shell2));
+
+// Elettroni
+function makeE(positions,adj){
+  const idx=Math.floor(Math.random()*positions.length);
+  const e={idx,state:Math.floor(Math.random()*3),path:[],t:0};
+  buildEPath(e,positions,adj,[]);
+  return e;
+}
+function buildEPath(e,positions,adj,others){
+  let cur=e.idx;e.path=[];
+  for(let i=0;i<300;i++){
+    const nb=adj[cur];
+    if(!nb.length)break;
+    const next=Math.random()>.3?nb[Math.floor(Math.random()*nb.length)]:cur;
+    const st=Math.floor(Math.random()*3);
+    const collision=others.some(o=>o.idx===next&&o.state===st);
+    e.path.push({idx:collision?cur:next,state:collision?(st+1)%3:st});
+    cur=e.path[e.path.length-1].idx;
+  }
+  e.t=0;
+}
+
+const e1s=[makeE(shell1,adj1),makeE(shell1,adj1)];
+const e2s=[makeE(shell2,adj2),makeE(shell2,adj2),makeE(shell2,adj2),makeE(shell2,adj2),makeE(shell2,adj2),makeE(shell2,adj2)];
+
+function stepElectrons(){
+  for(const e of e1s){
+    e.t++;
+    if(e.t>=e.path.length)buildEPath(e,shell1,adj1,e1s.filter(x=>x!==e));
+    else{const s=e.path[e.t];e.idx=s.idx;e.state=s.state;}
+  }
+  for(const e of e2s){
+    e.t++;
+    if(e.t>=e.path.length)buildEPath(e,shell2,adj2,e2s.filter(x=>x!==e));
+    else{const s=e.path[e.t];e.idx=s.idx;e.state=s.state;}
+  }
+}
+
+// Camera
+let rotX=.3,rotY=.5,zoom=70;
+let dragging=false,lastMX,lastMY,lastPD=null;
+canvas.addEventListener('mousedown',e=>{dragging=true;lastMX=e.clientX;lastMY=e.clientY;});
+canvas.addEventListener('mouseup',()=>dragging=false);
+window.addEventListener('mouseup',()=>dragging=false);
+canvas.addEventListener('mousemove',e=>{if(!dragging)return;rotY+=(e.clientX-lastMX)*.012;rotX+=(e.clientY-lastMY)*.012;lastMX=e.clientX;lastMY=e.clientY;});
+canvas.addEventListener('wheel',e=>{zoom=Math.max(25,Math.min(300,zoom-e.deltaY*.1));e.preventDefault();},{passive:false});
+canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){dragging=true;lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;}else if(e.touches.length===2){dragging=false;lastPD=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}});
+canvas.addEventListener('touchend',e=>{if(e.touches.length<2)lastPD=null;if(e.touches.length===0)dragging=false;});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(lastPD)zoom=Math.max(25,Math.min(300,zoom*(d/lastPD)));lastPD=d;}else if(dragging){rotY+=(e.touches[0].clientX-lastMX)*.012;rotX+=(e.touches[0].clientY-lastMY)*.012;lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;}},{passive:false});
+document.getElementById('zoomIn').addEventListener('click',()=>zoom=Math.min(300,zoom*1.25));
+document.getElementById('zoomOut').addEventListener('click',()=>zoom=Math.max(25,zoom*.8));
+
+function project(px,py,pz){
+  let x=px,y=py,z=pz;
+  let nx=x*Math.cos(rotY)+z*Math.sin(rotY),nz=-x*Math.sin(rotY)+z*Math.cos(rotY);x=nx;z=nz;
+  let ny=y*Math.cos(rotX)-z*Math.sin(rotX),nz2=y*Math.sin(rotX)+z*Math.cos(rotX);y=ny;z=nz2;
+  const fov=6,scale=zoom*fov/(fov+z+5);
+  return{sx:W/2+x*scale,sy:H/2-y*scale,z:z+5,scale};
+}
+
+function drawWireframeSphere(r,color,lw=1){
+  const nL=12,nLat=6;
+  for(let i=0;i<nL;i++){
+    const lon=(i/nL)*Math.PI*2;ctx.beginPath();
+    for(let j=0;j<=16;j++){const lat=-Math.PI/2+(j/16)*Math.PI;const p=project(r*Math.cos(lat)*Math.cos(lon),r*Math.sin(lat),r*Math.cos(lat)*Math.sin(lon));j===0?ctx.moveTo(p.sx,p.sy):ctx.lineTo(p.sx,p.sy);}
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.stroke();
+  }
+  for(let i=1;i<nLat;i++){
+    const lat=-Math.PI/2+(i/nLat)*Math.PI;const ry=r*Math.cos(lat),yr=r*Math.sin(lat);ctx.beginPath();
+    for(let j=0;j<=24;j++){const lon=(j/24)*Math.PI*2;const p=project(ry*Math.cos(lon),yr,ry*Math.sin(lon));j===0?ctx.moveTo(p.sx,p.sy):ctx.lineTo(p.sx,p.sy);}
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.stroke();
+  }
+}
+
+function drawShellSpheres(positions,activeSet,stateMap,col,dotCol){
+  const projs=positions.map(p=>project(p.x,p.y,p.z));
+  const sorted=positions.map((_,i)=>i).sort((a,b)=>projs[a].z-projs[b].z);
+  for(const i of sorted){
+    const p=projs[i];
+    const depth=Math.max(.15,Math.min(.9,.2+p.z*.07));
+    const isE=activeSet.has(i);
+    const sR=Math.max(3,p.scale*.3);
+    // Corpo
+    ctx.beginPath();ctx.arc(p.sx,p.sy,sR,0,Math.PI*2);
+    ctx.fillStyle=isE?`rgba(${col},${depth*.7})`:`rgba(15,25,60,${depth*.5})`;ctx.fill();
+    ctx.strokeStyle=isE?`rgba(${col},${depth*.9})`:`rgba(40,80,160,${depth*.45})`;ctx.lineWidth=.7;ctx.stroke();
+    // 3 punti
+    const angles=[Math.PI*.5,Math.PI*.5+Math.PI*2/3,Math.PI*.5+Math.PI*4/3];
+    const eState=stateMap[i];
+    for(let s=0;s<3;s++){
+      const ox=Math.cos(angles[s])*sR*.52,oy=Math.sin(angles[s])*sR*.52;
+      const dR=Math.max(1,sR*.18);
+      const isHere=isE&&s===eState;
+      if(isHere){
+        const gd=ctx.createRadialGradient(p.sx+ox,p.sy+oy,0,p.sx+ox,p.sy+oy,dR*3.5);
+        gd.addColorStop(0,`rgba(${dotCol},.9)`);gd.addColorStop(1,`rgba(${dotCol},0)`);
+        ctx.beginPath();ctx.arc(p.sx+ox,p.sy+oy,dR*3.5,0,Math.PI*2);ctx.fillStyle=gd;ctx.fill();
+        ctx.beginPath();ctx.arc(p.sx+ox,p.sy+oy,dR,0,Math.PI*2);ctx.fillStyle=`rgba(${dotCol},${depth})`;ctx.fill();
+      } else {
+        ctx.beginPath();ctx.arc(p.sx+ox,p.sy+oy,dR,0,Math.PI*2);
+        ctx.fillStyle=isE?`rgba(${col},${depth*.6})`:`rgba(30,55,110,${depth*.5})`;ctx.fill();
+      }
+    }
+  }
+}
+
+let frame=0;
+function draw(){
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#03050f';ctx.fillRect(0,0,W,H);
+  frame++;
+  nucQuarks.forEach(updateQuarks);
+  if(frame%1===0)stepElectrons();
+  if(frame%1===0)stepNucleus();
+  rotY+=.00015;
+
+  // Sfere wireframe
+  drawWireframeSphere(4.2,'rgba(220,80,255,0.1)',1.1);
+  drawWireframeSphere(2.8,'rgba(255,144,80,0.1)',1.0);
+  drawWireframeSphere(1.4,'rgba(255,100,100,0.1)',.8);
+
+  // Shell 2
+  const e2set=new Set(e2s.map(e=>e.idx));
+  const e2sm={};e2s.forEach(e=>e2sm[e.idx]=e.state);
+  drawShellSpheres(shell2,e2set,e2sm,'220,80,255','240,150,255');
+
+  // Shell 1
+  const e1set=new Set(e1s.map(e=>e.idx));
+  const e1sm={};e1s.forEach(e=>e1sm[e.idx]=e.state);
+  drawShellSpheres(shell1,e1set,e1sm,'255,144,80','255,220,150');
+
+  // NUCLEO
+  const nucProj=nucSpheres.map(s=>project(s.x,s.y,s.z));
+  const nucSorted=nucSpheres.map((_,i)=>i).sort((a,b)=>nucProj[a].z-nucProj[b].z);
+  for(const i of nucSorted){
+    const s=nucSpheres[i];const p=nucProj[i];
+    const depth=Math.max(.25,Math.min(1,.35+p.z*.15));
+    const sR=Math.max(4,p.scale*.38);const isP=s.type==='p';
+    const col=isP?'rgba(255,60,60,':'rgba(60,120,255,';
+    const grd=ctx.createRadialGradient(p.sx-sR*.2,p.sy-sR*.2,0,p.sx,p.sy,sR*1.3);
+    grd.addColorStop(0,col+`${.55*depth})`);grd.addColorStop(.5,col+`${.28*depth})`);grd.addColorStop(1,col+'0)');
+    ctx.beginPath();ctx.arc(p.sx,p.sy,sR,0,Math.PI*2);ctx.fillStyle=grd;ctx.fill();
+    ctx.strokeStyle=isP?`rgba(255,130,130,${depth*.6})`:`rgba(100,160,255,${depth*.6})`;ctx.lineWidth=.7;ctx.stroke();
+    // Quark sempre visibili
+    const qs=nucQuarks[i];
+    for(const q of qs){
+      const qp=project(s.x+q.x*.13,s.y+q.y*.13,s.z+q.z*.13);
+      const qR=Math.max(2.5,qp.scale*.08);
+      const grdQ=ctx.createRadialGradient(qp.sx,qp.sy,0,qp.sx,qp.sy,qR*1.8);
+      grdQ.addColorStop(0,q.color+'ff');grdQ.addColorStop(1,q.color+'00');
+      ctx.beginPath();ctx.arc(qp.sx,qp.sy,qR*1.8,0,Math.PI*2);ctx.fillStyle=grdQ;ctx.fill();
+      ctx.beginPath();ctx.arc(qp.sx,qp.sy,qR,0,Math.PI*2);ctx.fillStyle=q.color;ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.9)';
+      ctx.font=`bold ${Math.max(7,qR*1.1)}px Space Mono`;ctx.textAlign='center';
+      ctx.fillText(q.type,qp.sx,qp.sy+3);
+    }
+    ctx.fillStyle=isP?'rgba(255,160,160,.65)':'rgba(160,195,255,.65)';
+    ctx.font=`${Math.max(5,sR*.4)}px Space Mono`;ctx.textAlign='center';
+    ctx.fillText(isP?'p':'n',p.sx,p.sy+3);
+  }
+
+  // Pauli check
+  let pauliOk=true;
+  for(let i=0;i<e1s.length;i++)for(let j=i+1;j<e1s.length;j++)if(e1s[i].idx===e1s[j].idx&&e1s[i].state===e1s[j].state)pauliOk=false;
+  for(let i=0;i<e2s.length;i++)for(let j=i+1;j<e2s.length;j++)if(e2s[i].idx===e2s[j].idx&&e2s[i].state===e2s[j].state)pauliOk=false;
+
+  document.getElementById('paulistat').textContent=pauliOk?'stati distinti OK':'VIOLAZIONE';
+  document.getElementById('paulistat').style.color=pauliOk?'#6aaeff':'#ff4040';
+  document.getElementById('mc').textContent=moveCount;
+
+  e1s.forEach((e,i)=>{const p=shell1[e.idx];document.getElementById(`e1${String.fromCharCode(97+i)}`).textContent=`e${i+1}: v${e.idx} s${e.state+1}`;});
+  e2s.forEach((e,i)=>{const p=shell2[e.idx];document.getElementById(`e2${String.fromCharCode(97+i)}`).textContent=`e${i+3}: v${e.idx} s${e.state+1}`;});
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>
