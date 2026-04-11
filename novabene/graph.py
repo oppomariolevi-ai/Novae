@@ -10,6 +10,7 @@ Utile per prototipazione FPGA e simulazioni quantistiche discrete.
 
 import numpy as np
 from scipy.linalg import eigh
+from .arithmetic import Nit, nit_add, nit_mul, nit_from_string, nit_to_string, SYMBOLS, _SYM_TO_DEC, _dec_to_nit
 
 # === SETUP GEOMETRIA ICOSAEDRICA (kissing number 12) ===
 phi = (1 + np.sqrt(5)) / 2
