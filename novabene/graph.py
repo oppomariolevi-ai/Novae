@@ -1,18 +1,30 @@
 """
 Novae-Graph – Discrete Dirac Quantum Walk on Icosahedral Graph
-Autore: Filippo Mario Oppo (Perito Elettrotecnico)
-Licenza: MIT
-Data: 9 Aprile 2026
-
-Simulazione di dinamica Dirac discreta su grafo icosaedrico 13-nodi.
-Utile per prototipazione FPGA e simulazioni quantistiche discrete.
+Autore: Filippo Mario Oppo
 """
+
+import sys
+from pathlib import Path
+
+# Fix robusto: funziona sia su Colab/Jupyter che da terminale
+try:
+    current_dir = Path(__file__).parent
+except NameError:
+    current_dir = Path.cwd()
+
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
 
 import numpy as np
 from scipy.linalg import eigh
-from .arithmetic import Nit, nit_add, nit_mul, nit_from_string, nit_to_string, SYMBOLS, _SYM_TO_DEC, _dec_to_nit
 
-# === SETUP GEOMETRIA ICOSAEDRICA (kissing number 12) ===
+# Import da arithmetic.py (stessa cartella novabene/)
+from arithmetic import (
+    Nit, nit_add, nit_mul, nit_from_string, nit_to_string,
+    SYMBOLS, _SYM_TO_DEC, _dec_to_nit
+)
+
+# === SETUP GEOMETRIA ICOSAEDRICA ===
 phi = (1 + np.sqrt(5)) / 2
 raw_vertices = np.array([
     [0, 1, phi], [0, 1, -phi], [0, -1, phi], [0, -1, -phi],
@@ -24,7 +36,7 @@ norm_factor = np.linalg.norm(raw_vertices[0])
 vertices = raw_vertices / norm_factor * 2.0
 center = np.array([0.0, 0.0, 0.0])
 
-# Matrice di adiacenza per i 12 vertici
+# Matrice di adiacenza
 adj = np.zeros((12, 12), dtype=int)
 a_theory = 2.0 * 4.0 / np.sqrt(10 + 2 * np.sqrt(5))
 for i in range(12):
@@ -33,7 +45,7 @@ for i in range(12):
         if abs(dist - a_theory) < 1e-6:
             adj[i, j] = adj[j, i] = 1
 
-# === Matrici Dirac (rappresentazione Pauli) ===
+# === Matrici Dirac ===
 sigma1 = np.array([[0, 1], [1, 0]])
 sigma2 = np.array([[0, -1j], [1j, 0]])
 sigma3 = np.array([[1, 0], [0, -1]])
@@ -44,7 +56,6 @@ gamma3 = np.block([[np.zeros((2, 2)), sigma3], [-sigma3, np.zeros((2, 2))]])
 gamma = [gamma1, gamma2, gamma3]
 
 def build_hamiltonian(g_coupling=1.0, mass_center=0.0):
-    """Costruisce la Hamiltoniana 52x52 (13 nodi × 4 componenti spinoriali)"""
     N_nodes, N_spin = 13, 4
     dim = N_nodes * N_spin
     H = np.zeros((dim, dim), dtype=complex)
@@ -79,7 +90,6 @@ def build_hamiltonian(g_coupling=1.0, mass_center=0.0):
                         H[idx_i, idx_j] += val
                         H[idx_j, idx_i] += np.conjugate(val)
 
-    # Termine di massa (solo al centro)
     if mass_center != 0.0:
         for a in range(4):
             for b in range(4):
@@ -88,7 +98,7 @@ def build_hamiltonian(g_coupling=1.0, mass_center=0.0):
 
     return H
 
-# === ESECUZIONE DI TEST ===
+# === TEST + GRAFICI ===
 if __name__ == "__main__":
     lambda_val = 0.5
     print("Test scaling lineare (Novae-Graph):")
@@ -98,14 +108,12 @@ if __name__ == "__main__":
         E_gs = np.min(np.abs(eigvals[eigvals > 0]))
         print(f"n={n:4d} → E_gs={E_gs:.5f}  |E|/n={E_gs/n:.5f}")
 
-    # Verifica hermitiana
     H_test = build_hamiltonian(mass_center=lambda_val * 1)
     error = np.linalg.norm(H_test - H_test.conj().T)
-    print(f"\nErrore hermitiana: {error:.2e} (deve essere \~0)")
-# === GRAFICI AUTOMATICI (per portfolio) ===
-    import matplotlib.pyplot as plt
+    print(f"\nErrore hermitiana: {error:.2e} (deve essere ~0)")
 
-    # Grafico 1: Scaling dell'energia
+    # Grafici
+    import matplotlib.pyplot as plt
     ns = [1, 10, 50, 100, 500, 1000]
     Egs_list = []
     for n in ns:
@@ -127,7 +135,6 @@ if __name__ == "__main__":
     plt.savefig('energy_scaling.png', dpi=200, bbox_inches='tight')
     print("✅ Salvato: energy_scaling.png")
 
-    # Grafico 2: Spettro autovalori (per n=1)
     H1 = build_hamiltonian(mass_center=0.5 * 1)
     eigvals1 = np.sort(eigh(H1)[0])
     plt.figure(figsize=(8, 5))
