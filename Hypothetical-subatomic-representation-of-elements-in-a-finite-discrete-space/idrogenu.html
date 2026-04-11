@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Novabene — ¹H Icosaedro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#03050f; color:#d0dcff; font-family:'Space Mono',monospace; overflow:hidden; height:100vh; display:flex; flex-direction:column; }
+  header { padding:12px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #111830; background:rgba(3,5,15,0.97); z-index:10; }
+  .title { font-family:'Syne',sans-serif; font-weight:800; font-size:16px; letter-spacing:3px; color:#6aaeff; }
+  .subtitle { font-size:9px; color:#303860; letter-spacing:1px; margin-top:2px; }
+  .stats { display:flex; gap:20px; }
+  .stat { text-align:center; }
+  .stat-val { font-size:18px; font-weight:700; color:#6aaeff; font-family:'Syne',sans-serif; }
+  .stat-label { color:#303860; font-size:9px; letter-spacing:1px; }
+  #canvas { flex:1; display:block; cursor:grab; }
+  #canvas:active { cursor:grabbing; }
+  .legend { position:absolute; bottom:16px; left:20px; font-size:10px; color:#303860; line-height:2.2; background:rgba(3,5,15,0.85); padding:8px 12px; border-radius:8px; }
+  .legend span { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .zoom-btns { position:absolute; bottom:70px; right:20px; display:flex; flex-direction:column; gap:6px; }
+  .zoom-btn { background:rgba(20,30,60,0.95); border:1px solid #1a2848; color:#6aaeff; font-size:18px; width:36px; height:36px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif; font-weight:800; user-select:none; }
+  .zoom-btn:active { background:rgba(40,70,140,0.95); }
+  .controls { position:absolute; bottom:16px; right:20px; font-size:10px; color:#303860; text-align:right; line-height:2; background:rgba(3,5,15,0.85); padding:8px 12px; border-radius:8px; }
+  .info { position:absolute; top:68px; right:20px; background:rgba(3,5,15,0.95); border:1px solid #111830; padding:14px; font-size:10px; line-height:2.2; min-width:200px; border-radius:8px; }
+  .info-title { font-family:'Syne',sans-serif; color:#6aaeff; font-size:11px; letter-spacing:1px; margin-bottom:6px; }
+  .info-row { display:flex; justify-content:space-between; gap:12px; }
+  .info-val { color:#6aaeff; }
+  .einfo { position:absolute; top:68px; left:20px; background:rgba(3,5,15,0.95); border:1px solid #111830; padding:14px; font-size:10px; line-height:2.2; border-radius:8px; }
+  .e-title { font-family:'Syne',sans-serif; color:#ff9050; font-size:11px; letter-spacing:1px; margin-bottom:6px; }
+  .e-val { color:#ff9050; font-size:12px; font-weight:700; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="title">NOVABENE — ¹H ICOSAEDRO</div>
+    <div class="subtitle">12 SFERE × 13 PUNTI · 156 STATI · PROTONE 1+12 · PAULI ✓</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-val">12</div><div class="stat-label">SFERE ORB.</div></div>
+    <div class="stat"><div class="stat-val">13</div><div class="stat-label">PUNTI/SFERA</div></div>
+    <div class="stat"><div class="stat-val">156</div><div class="stat-label">STATI</div></div>
+    <div class="stat"><div class="stat-val">(+1-0)</div><div class="stat-label">PROTONE</div></div>
+  </div>
+</header>
+
+<canvas id="canvas"></canvas>
+
+<div class="legend">
+  <div><span style="background:transparent;border:1px solid rgba(106,174,255,0.4);width:11px;height:11px;border-radius:50%"></span> Sfera orbitale esterna</div>
+  <div><span style="background:#6aaeff;opacity:0.6"></span> Protone (13 punti · uud)</div>
+  <div><span style="background:#223366;border:1px solid #334488"></span> Sfere icosaedriche ×12</div>
+  <div><span style="background:#ff9050"></span> Elettrone (punto attivo)</div>
+</div>
+
+<div class="zoom-btns">
+  <div class="zoom-btn" id="zoomIn">+</div>
+  <div class="zoom-btn" id="zoomOut">−</div>
+</div>
+<div class="controls">DRAG — ruota<br>SCROLL/PINCH — zoom</div>
+
+<div class="info">
+  <div class="info-title">STRUTTURA ¹H</div>
+  <div class="info-row"><span>Protone</span><span class="info-val">13 punti (1+12)</span></div>
+  <div class="info-row"><span>Quark</span><span class="info-val">uud · Pauli ✓</span></div>
+  <div class="info-row"><span>Orbitale</span><span class="info-val">12 sfere ico</span></div>
+  <div class="info-row"><span>Punti/sfera</span><span class="info-val">13 (1+12)</span></div>
+  <div class="info-row"><span>Stati totali</span><span class="info-val">156</span></div>
+</div>
+
+<div class="einfo">
+  <div class="e-title">ELETTRONE</div>
+  <div id="epos" class="e-val">—</div>
+  <div id="eidx" style="font-size:10px;color:#a06030;margin-top:2px;">—</div>
+  <div id="estate" style="font-size:10px;color:#ff9050;margin-top:2px;">—</div>
+  <div id="eadj" style="font-size:10px;color:#303860;margin-top:2px;">—</div>
+</div>
+
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=canvas.offsetWidth;H=canvas.height=canvas.offsetHeight;}
+resize();window.addEventListener('resize',resize);
+
+// ── 13 PUNTI: 1 centro + 12 vertici icosaedrici ───────────────
+const phi=(1+Math.sqrt(5))/2;
+
+function makeIco13(scale){
+  const raw=[
+    [0,0,0], // [0] centro
+    [0,1,phi],[0,-1,phi],[0,1,-phi],[0,-1,-phi],   // [1-4]
+    [1,phi,0],[-1,phi,0],[1,-phi,0],[-1,-phi,0],   // [5-8]
+    [phi,0,1],[-phi,0,1],[phi,0,-1],[-phi,0,-1]    // [9-12]
+  ];
+  return raw.map(v=>{
+    if(v[0]===0&&v[1]===0&&v[2]===0) return {x:0,y:0,z:0};
+    const l=Math.sqrt(v[0]**2+v[1]**2+v[2]**2);
+    return {x:v[0]/l*scale,y:v[1]/l*scale,z:v[2]/l*scale};
+  });
+}
+
+// Costruisce adiacenze per un set di 13 punti
+// Centro connette a tutti; vertici: connetti ai vicini ico
+function buildAdj13(pts,scale){
+  const edges=[];
+  // Centro → tutti
+  for(let i=1;i<13;i++) edges.push([0,i]);
+  // Tra vertici ico (distanza ~ scale * 2/phi)
+  const thresh=scale*2/phi*2.15;
+  for(let i=1;i<13;i++)
+    for(let j=i+1;j<13;j++){
+      const d=Math.sqrt((pts[i].x-pts[j].x)**2+(pts[i].y-pts[j].y)**2+(pts[i].z-pts[j].z)**2);
+      if(d<thresh) edges.push([i,j]);
+    }
+  return pts.map((_,i)=>edges.filter(e=>e[0]===i||e[1]===i).map(e=>e[0]===i?e[1]:e[0]));
+}
+
+// 13 punti del protone (scala ~0.3)
+const R_PROT=0.3;
+const protPts=makeIco13(R_PROT);
+const protAdj=buildAdj13(protPts,R_PROT);
+
+// 13 sub-punti orbitali (scala minima, usata solo per visualizzazione relativa)
+const R_SUB=0.3;
+const subPts=makeIco13(R_SUB);
+const subAdj=buildAdj13(subPts,R_SUB);
+
+// ── ICOSAEDRO ESTERNO: 12 sfere orbitali ──────────────────────
+const R_ORB=1;
+const rawVerts=[
+  [0,1,phi],[0,-1,phi],[0,1,-phi],[0,-1,-phi],
+  [1,phi,0],[-1,phi,0],[1,-phi,0],[-1,-phi,0],
+  [phi,0,1],[-phi,0,1],[phi,0,-1],[-phi,0,-1]
+];
+const icoVerts=rawVerts.map(v=>{
+  const l=Math.sqrt(v[0]**2+v[1]**2+v[2]**2);
+  return {x:v[0]/l*R_ORB,y:v[1]/l*R_ORB,z:v[2]/l*R_ORB};
+});
+const edgeLen=R_ORB*2/phi*1.1;
+const icoEdges=[];
+for(let i=0;i<12;i++)
+  for(let j=i+1;j<12;j++){
+    const d=Math.sqrt((icoVerts[i].x-icoVerts[j].x)**2+(icoVerts[i].y-icoVerts[j].y)**2+(icoVerts[i].z-icoVerts[j].z)**2);
+    if(d<edgeLen) icoEdges.push([i,j]);
+  }
+const orbAdj=icoVerts.map((_,i)=>icoEdges.filter(e=>e[0]===i||e[1]===i).map(e=>e[0]===i?e[1]:e[0]));
+
+// ── QUARK: 3 su 13 punti del protone, no sovrapposizione ──────
+const quarks=[
+  {pt:0, type:'u', color:'#ff6060'},
+  {pt:4, type:'u', color:'#50c8ff'},
+  {pt:9, type:'d', color:'#00ff00'},
+];
+
+function stepQuarks(){
+  for(let qi=0;qi<quarks.length;qi++){
+    if(Math.random()<0.45){
+      const q=quarks[qi];
+      const nb=protAdj[q.pt];
+      // Solo punti non occupati dagli altri quark
+      const free=nb.filter(n=>!quarks.some((o,oi)=>oi!==qi&&o.pt===n));
+      if(free.length>0) q.pt=free[Math.floor(Math.random()*free.length)];
+    }
+  }
+}
+
+// ── ELETTRONE: sfera 0-11, punto interno 0-12 = 156 stati ─────
+let eSphere=0, ePoint=0;
+const ePath=[];
+
+function buildPath(){
+  let cs=Math.floor(Math.random()*12);
+  let cp=Math.floor(Math.random()*13);
+  for(let i=0;i<600;i++){
+    const nb=orbAdj[cs];
+    // Con prob 0.7 cambia sfera, con 0.3 resta e cambia solo punto
+    let ns=cs,np=cp;
+    if(Math.random()<0.65&&nb.length){
+      ns=nb[Math.floor(Math.random()*nb.length)];
+    }
+    // Muove tra i 13 punti della sfera di destinazione
+    const snb=subAdj[cp];
+    if(snb.length&&Math.random()<0.8) np=snb[Math.floor(Math.random()*snb.length)];
+    else np=Math.floor(Math.random()*13);
+    ePath.push({sphere:ns,point:np});
+    cs=ns;cp=np;
+  }
+}
+buildPath();
+let eT=0;
+
+// Camera
+let rotX=.3,rotY=.5,zoom=80;
+let dragging=false,lastMX,lastMY,lastPD=null;
+canvas.addEventListener('mousedown',e=>{dragging=true;lastMX=e.clientX;lastMY=e.clientY;});
+canvas.addEventListener('mouseup',()=>dragging=false);
+window.addEventListener('mouseup',()=>dragging=false);
+canvas.addEventListener('mousemove',e=>{if(!dragging)return;rotY+=(e.clientX-lastMX)*.012;rotX+=(e.clientY-lastMY)*.012;lastMX=e.clientX;lastMY=e.clientY;});
+canvas.addEventListener('wheel',e=>{zoom=Math.max(30,Math.min(300,zoom-e.deltaY*.1));e.preventDefault();},{passive:false});
+canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){dragging=true;lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;}else if(e.touches.length===2){dragging=false;lastPD=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}});
+canvas.addEventListener('touchend',e=>{if(e.touches.length<2)lastPD=null;if(e.touches.length===0)dragging=false;});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(lastPD)zoom=Math.max(30,Math.min(300,zoom*(d/lastPD)));lastPD=d;}else if(dragging&&e.touches.length===1){rotY+=(e.touches[0].clientX-lastMX)*.012;rotX+=(e.touches[0].clientY-lastMY)*.012;lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;}},{passive:false});
+document.getElementById('zoomIn').addEventListener('click',()=>zoom=Math.min(300,zoom*1.25));
+document.getElementById('zoomOut').addEventListener('click',()=>zoom=Math.max(30,zoom*.8));
+
+function project(px,py,pz){
+  let x=px,y=py,z=pz;
+  let nx=x*Math.cos(rotY)+z*Math.sin(rotY),nz=-x*Math.sin(rotY)+z*Math.cos(rotY);x=nx;z=nz;
+  let ny=y*Math.cos(rotX)-z*Math.sin(rotX),nz2=y*Math.sin(rotX)+z*Math.cos(rotX);y=ny;z=nz2;
+  const fov=6,scale=zoom*fov/(fov+z+4);
+  return{sx:W/2+x*scale,sy:H/2-y*scale,z:z+4,scale};
+}
+
+function drawWireframeSphere(r,color,lw=1,nL=14,nLat=7){
+  for(let i=0;i<nL;i++){
+    const lon=(i/nL)*Math.PI*2;
+    ctx.beginPath();
+    for(let j=0;j<=20;j++){
+      const lat=-Math.PI/2+(j/20)*Math.PI;
+      const p=project(r*Math.cos(lat)*Math.cos(lon),r*Math.sin(lat),r*Math.cos(lat)*Math.sin(lon));
+      j===0?ctx.moveTo(p.sx,p.sy):ctx.lineTo(p.sx,p.sy);
+    }
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.stroke();
+  }
+  for(let i=1;i<nLat;i++){
+    const lat=-Math.PI/2+(i/nLat)*Math.PI;
+    const ry=r*Math.cos(lat),yr=r*Math.sin(lat);
+    ctx.beginPath();
+    for(let j=0;j<=32;j++){
+      const lon=(j/32)*Math.PI*2;
+      const p=project(ry*Math.cos(lon),yr,ry*Math.sin(lon));
+      j===0?ctx.moveTo(p.sx,p.sy):ctx.lineTo(p.sx,p.sy);
+    }
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.stroke();
+  }
+}
+
+let frame=0;
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#03050f';ctx.fillRect(0,0,W,H);
+  frame++;
+
+  stepQuarks();
+
+  // Avanza elettrone
+  eT++;
+  if(eT>=ePath.length){ePath.length=0;buildPath();eT=0;}
+  const step=ePath[eT]||{sphere:0,point:0};
+  eSphere=step.sphere;ePoint=step.point;
+
+  rotY+=.0002;
+
+  const proj=icoVerts.map(v=>project(v.x,v.y,v.z));
+  const projC=project(0,0,0);
+
+  // Sfera esterna wireframe
+  drawWireframeSphere(R_ORB*1.55,'rgba(106,174,255,0.06)',1.2);
+
+  // Spigoli icosaedro esterno
+  for(const [i,j] of icoEdges){
+    const p1=proj[i],p2=proj[j];
+    const alpha=Math.max(0,.04+((p1.z+p2.z)/2)*.018);
+    ctx.beginPath();ctx.moveTo(p1.sx,p1.sy);ctx.lineTo(p2.sx,p2.sy);
+    ctx.strokeStyle=`rgba(50,100,200,${alpha})`;ctx.lineWidth=.7;ctx.stroke();
+  }
+
+  // Linee centro → vertici
+  for(let i=0;i<12;i++){
+    const p=proj[i];
+    const alpha=Math.max(0,.03+p.z*.012);
+    ctx.beginPath();ctx.moveTo(projC.sx,projC.sy);ctx.lineTo(p.sx,p.sy);
+    ctx.strokeStyle=`rgba(106,174,255,${alpha})`;ctx.lineWidth=.4;ctx.stroke();
+  }
+
+  // Ordine di disegno back-to-front
+  const sorted=[...icoVerts.map((_,i)=>i)].sort((a,b)=>proj[a].z-proj[b].z);
+
+  // ── SFERE ORBITALI con 13 sub-punti ───────────────────────
+  for(const i of sorted){
+    const vc=icoVerts[i];
+    const pc=proj[i];
+    const depth=Math.max(.2,Math.min(1,.3+pc.z*.1));
+    const isE=i===eSphere;
+    const sR=Math.max(5,pc.scale*.42);
+
+    // Corpo sfera
+    if(isE){
+      const grd=ctx.createRadialGradient(pc.sx,pc.sy,0,pc.sx,pc.sy,sR*2.8);
+      grd.addColorStop(0,'rgba(255,144,80,0.35)');grd.addColorStop(1,'rgba(255,144,80,0)');
+      ctx.beginPath();ctx.arc(pc.sx,pc.sy,sR*2.8,0,Math.PI*2);ctx.fillStyle=grd;ctx.fill();
+      ctx.beginPath();ctx.arc(pc.sx,pc.sy,sR,0,Math.PI*2);
+      ctx.fillStyle=`rgba(50,20,8,${depth*.8})`;ctx.fill();
+      ctx.strokeStyle=`rgba(255,144,80,${depth*.9})`;ctx.lineWidth=1.2;ctx.stroke();
+    } else {
+      ctx.beginPath();ctx.arc(pc.sx,pc.sy,sR,0,Math.PI*2);
+      ctx.fillStyle=`rgba(6,12,35,${depth*.6})`;ctx.fill();
+      ctx.strokeStyle=`rgba(40,80,160,${depth*.55})`;ctx.lineWidth=.8;ctx.stroke();
+    }
+
+    // 13 sub-punti interni (proiettati in 3D reale)
+    const dotR=Math.max(1,sR*.13);
+    for(let s=0;s<13;s++){
+      const sp=subPts[s];
+      const pp=project(vc.x+sp.x,vc.y+sp.y,vc.z+sp.z);
+      const isActive=isE&&s===ePoint;
+
+      if(isActive){
+        // Punto elettrone acceso
+        const gd=ctx.createRadialGradient(pp.sx,pp.sy,0,pp.sx,pp.sy,dotR*4);
+        gd.addColorStop(0,'rgba(255,210,140,0.95)');gd.addColorStop(1,'rgba(255,100,20,0)');
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR*4,0,Math.PI*2);ctx.fillStyle=gd;ctx.fill();
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR*1.5,0,Math.PI*2);
+        ctx.fillStyle=`rgba(255,230,160,${depth})`;ctx.fill();
+      } else {
+        // Punto vuoto / dimmed
+        ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR*.8,0,Math.PI*2);
+        const col=isE?`rgba(180,100,30,${depth*.55})`:`rgba(40,80,160,${depth*.35})`;
+        ctx.fillStyle=col;ctx.fill();
+      }
+    }
+
+    // Indice sfera
+    if(sR>7){
+      ctx.fillStyle=`rgba(100,140,255,${depth*.45})`;
+      ctx.font=`${Math.max(7,sR*.28)}px Space Mono`;
+      ctx.textAlign='center';
+      ctx.fillText(i,pc.sx,pc.sy-sR*.82);
+    }
+  }
+
+  // ── PROTONE: 13 punti + quark ─────────────────────────────
+  const pR=Math.max(9,projC.scale*.58);
+
+  // Glow protone
+  const grdP=ctx.createRadialGradient(projC.sx-pR*.3,projC.sy-pR*.3,0,projC.sx,projC.sy,pR*1.5);
+  grdP.addColorStop(0,'rgba(255,30,30,0.28)');
+  grdP.addColorStop(.5,'rgba(255,0,0,0.1)');
+  grdP.addColorStop(1,'rgba(255,0,0,0.01)');
+  ctx.beginPath();ctx.arc(projC.sx,projC.sy,pR,0,Math.PI*2);
+  ctx.fillStyle=grdP;ctx.fill();
+  ctx.strokeStyle='rgba(106,174,255,0.42)';ctx.lineWidth=1;ctx.stroke();
+
+  // Spigoli interni del protone (visualizzazione rete)
+  for(let i=0;i<13;i++){
+    const nb=protAdj[i];
+    const pi=project(protPts[i].x,protPts[i].y,protPts[i].z);
+    for(const j of nb){
+      if(j<=i) continue;
+      const pj=project(protPts[j].x,protPts[j].y,protPts[j].z);
+      ctx.beginPath();ctx.moveTo(pi.sx,pi.sy);ctx.lineTo(pj.sx,pj.sy);
+      ctx.strokeStyle='rgba(106,174,255,0.12)';ctx.lineWidth=.5;ctx.stroke();
+    }
+  }
+
+  // 13 punti del protone con quark
+  for(let s=0;s<13;s++){
+    const sp=protPts[s];
+    const pp=project(sp.x,sp.y,sp.z);
+    const qHere=quarks.find(q=>q.pt===s);
+    const dotR=Math.max(2,pp.scale*.09);
+
+    if(qHere){
+      const gd=ctx.createRadialGradient(pp.sx,pp.sy,0,pp.sx,pp.sy,dotR*2.8);
+      gd.addColorStop(0,qHere.color+'ee');gd.addColorStop(1,qHere.color+'00');
+      ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR*2.8,0,Math.PI*2);ctx.fillStyle=gd;ctx.fill();
+      ctx.beginPath();ctx.arc(pp.sx,pp.sy,dotR,0,Math.PI*2);ctx.fillStyle=qHere.color;ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,0.93)';
+      ctx.font=`bold ${Math.max(7,dotR*1.1)}px Space Mono`;
+      ctx.textAlign='center';
+      ctx.fillText(qHere.type,pp.sx,pp.sy+3);
+    } else {
+      // Punto libero
+      ctx.beginPath();ctx.arc(pp.sx,pp.sy,Math.max(1.2,dotR*.6),0,Math.PI*2);
+      ctx.fillStyle='rgba(106,174,255,0.22)';ctx.fill();
+    }
+  }
+
+  // Label protone
+  ctx.fillStyle='rgba(106,174,255,0.5)';
+  ctx.font='9px Space Mono';ctx.textAlign='center';
+  ctx.fillText('(+1-0) 13pts',projC.sx,projC.sy+pR+14);
+
+  // Info UI
+  const ep=icoVerts[eSphere];
+  const adjCount=orbAdj[eSphere].length;
+  const ptLabel=ePoint===0?'centro':`ico-${ePoint}`;
+  document.getElementById('epos').textContent=`Sfera ${eSphere} · Punto ${ePoint}`;
+  document.getElementById('eidx').textContent=`Stato globale: ${eSphere*13+ePoint+1} / 156`;
+  document.getElementById('estate').textContent=`Punto: ${ptLabel}`;
+  document.getElementById('eadj').textContent=`${adjCount} sfere adiacenti`;
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>
