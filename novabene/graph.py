@@ -1,28 +1,21 @@
 """
 Novae-Graph – Discrete Dirac Quantum Walk on Icosahedral Graph
 Autore: Filippo Mario Oppo
+Licenza: MIT
 """
-
-import sys
-from pathlib import Path
-
-# Fix robusto: funziona sia su Colab/Jupyter che da terminale
-try:
-    current_dir = Path(__file__).parent
-except NameError:
-    current_dir = Path.cwd()
-
-if str(current_dir) not in sys.path:
-    sys.path.insert(0, str(current_dir))
 
 import numpy as np
 from scipy.linalg import eigh
 
-# Import da arithmetic.py (stessa cartella novabene/)
-from arithmetic import (
-    Nit, nit_add, nit_mul, nit_from_string, nit_to_string,
-    SYMBOLS, _SYM_TO_DEC, _dec_to_nit
-)
+# Import robusto per funzionare in qualsiasi contesto
+try:
+    from .arithmetic import Nit, _SYM_TO_DEC, _DEC_TO_SYM
+except ImportError:
+    from arithmetic import Nit, _SYM_TO_DEC, _DEC_TO_SYM
+
+# Alias per mantenere compatibilità con vecchio nome (se usato)
+def _dec_to_nit(val: int) -> str:
+    return _DEC_TO_SYM[val]
 
 # === SETUP GEOMETRIA ICOSAEDRICA ===
 phi = (1 + np.sqrt(5)) / 2
@@ -98,7 +91,7 @@ def build_hamiltonian(g_coupling=1.0, mass_center=0.0):
 
     return H
 
-# === TEST + GRAFICI ===
+# === TEST ===
 if __name__ == "__main__":
     lambda_val = 0.5
     print("Test scaling lineare (Novae-Graph):")
@@ -107,42 +100,3 @@ if __name__ == "__main__":
         eigvals = eigh(H)[0]
         E_gs = np.min(np.abs(eigvals[eigvals > 0]))
         print(f"n={n:4d} → E_gs={E_gs:.5f}  |E|/n={E_gs/n:.5f}")
-
-    H_test = build_hamiltonian(mass_center=lambda_val * 1)
-    error = np.linalg.norm(H_test - H_test.conj().T)
-    print(f"\nErrore hermitiana: {error:.2e} (deve essere ~0)")
-
-    # Grafici
-    import matplotlib.pyplot as plt
-    ns = [1, 10, 50, 100, 500, 1000]
-    Egs_list = []
-    for n in ns:
-        H = build_hamiltonian(mass_center=0.5 * n)
-        eigvals = eigh(H)[0]
-        Egs = np.min(np.abs(eigvals[eigvals > 0]))
-        Egs_list.append(Egs)
-
-    plt.figure(figsize=(8, 5))
-    plt.plot(ns, Egs_list, 'o-', linewidth=2, markersize=8, label='E_ground-state')
-    plt.plot(ns, [0.5 * n for n in ns], '--', label='Riferimento lineare E = λ·n (λ=0.5)')
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlabel('Numero combinatorio n_tot')
-    plt.ylabel('Energia ground-state')
-    plt.title('Novae-Graph: Scaling dell’energia (Dirac discreto)')
-    plt.legend()
-    plt.grid(True, which='both')
-    plt.savefig('energy_scaling.png', dpi=200, bbox_inches='tight')
-    print("✅ Salvato: energy_scaling.png")
-
-    H1 = build_hamiltonian(mass_center=0.5 * 1)
-    eigvals1 = np.sort(eigh(H1)[0])
-    plt.figure(figsize=(8, 5))
-    plt.plot(eigvals1, 'o', markersize=4)
-    plt.axhline(0, color='red', linestyle='--', linewidth=1)
-    plt.title('Spettro completo della Hamiltoniana (n=1) – 52 autovalori')
-    plt.xlabel('Indice autovalore')
-    plt.ylabel('Energia')
-    plt.grid(True)
-    plt.savefig('spectrum_n1.png', dpi=200, bbox_inches='tight')
-    print("✅ Salvato: spectrum_n1.png")
