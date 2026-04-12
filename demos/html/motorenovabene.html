@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motore Novabene · Definitivo</title>
+    <style>
+        body { font-family: 'Segoe UI', monospace; background: #0b0e1a; color: #e0e8ff; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: #6aaeff; }
+        .success { color: #80ff80; }
+        .error { color: #ff8080; }
+        table { width: 100%; border-collapse: collapse; background: #101624; border-radius: 16px; margin: 20px 0; }
+        th, td { padding: 10px; border-bottom: 1px solid #2a3a5c; text-align: center; }
+        th { background: #1a2438; }
+        button { background: #2a4a8a; color: white; padding: 12px 24px; border-radius: 30px; font-size: 1.1rem; cursor: pointer; border: none; font-weight: bold; margin: 10px 0; }
+        .mono { font-family: 'Courier New', monospace; }
+        .test-box { background: #0e1622; border: 1px solid #2a3a5c; border-radius: 20px; padding: 20px; margin: 20px 0; }
+        input { background: #0e1622; border: 1px solid #3a4a6a; color: white; padding: 12px; border-radius: 20px; font-family: 'Courier New'; width: 100px; margin-right: 10px; }
+        select { background: #1e2a3a; color: white; padding: 12px; border-radius: 20px; margin-right: 10px; }
+        .note { font-size: 0.9rem; color: #8a9fc0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🧪 Motore Novabene – 0×9 = 9 · 9+0 = 00</h1>
+    <p>Normalizzazione definitiva: nessun ∅ interno. Test esaustivi 0–99.</p>
+
+    <button onclick="runAllTests()">🔄 Esegui tutti i test</button>
+    <span id="testStatus">Pronto</span>
+    <div id="testResults"></div>
+
+    <div class="test-box">
+        <h3>🔬 Test manuale dei casi critici</h3>
+        <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
+            <div>
+                <label>9 + 0</label>
+                <input type="text" id="test1_a" value="9"> +
+                <input type="text" id="test1_b" value="0"> =
+                <span id="test1_res" class="mono" style="font-size:1.5rem;">?</span>
+            </div>
+            <div>
+                <label>0 × 9</label>
+                <input type="text" id="test2_a" value="0"> ×
+                <input type="text" id="test2_b" value="9"> =
+                <span id="test2_res" class="mono" style="font-size:1.5rem;">?</span>
+            </div>
+            <div>
+                <label>∅ × 9</label>
+                <input type="text" id="test3_a" value="∅"> ×
+                <input type="text" id="test3_b" value="9"> =
+                <span id="test3_res" class="mono" style="font-size:1.5rem;">?</span>
+            </div>
+        </div>
+        <button onclick="runManualTests()">Aggiorna test manuali</button>
+    </div>
+
+    <div class="test-box">
+        <h3>🧮 Test libero</h3>
+        <input type="text" id="freeA" value="89">
+        <select id="freeOp">
+            <option value="add">+</option>
+            <option value="sub">−</option>
+            <option value="mul">×</option>
+            <option value="div">÷</option>
+        </select>
+        <input type="text" id="freeB" value="0">
+        <button onclick="runFreeTest()">Calcola</button>
+        <p>Risultato: <span id="freeResult" class="mono" style="font-size:1.5rem;">?</span></p>
+    </div>
+
+    <p class="note">Nota: '0' = +0 (valore 1), ∅ = zero assoluto.</p>
+</div>
+
+<script>
+    // ==================== MOTORE NOVABENE (DEFINITIVO) ====================
+    const SYMBOLS = ['-9','-8','-7','-6','-5','-4','-3','-2','-1','-0','∅','+0','+1','+2','+3','+4','+5','+6','+7','+8','+9'];
+    const SYM_TO_DEC = {}; const DEC_TO_SYM = {};
+    (function init() {
+        SYM_TO_DEC['∅'] = 0; DEC_TO_SYM[0] = '∅';
+        for(let d=9; d>=0; d--) { let s = '-'+d, v = -(d+1); SYM_TO_DEC[s] = v; DEC_TO_SYM[v] = s; }
+        for(let d=0; d<=9; d++) { let s = '+'+d, v = d+1; SYM_TO_DEC[s] = v; DEC_TO_SYM[v] = s; }
+    })();
+
+    const ADD_TABLE = {}; const SUB_TABLE = {};
+    (function build() {
+        for(let a of SYMBOLS) for(let b of SYMBOLS) {
+            let sa = SYM_TO_DEC[a], sb = SYM_TO_DEC[b];
+            let sum = sa + sb, carry = '∅', res;
+            if(sum > 10) { res = DEC_TO_SYM[sum - 10]; carry = '+0'; }
+            else if(sum < -10) { res = DEC_TO_SYM[sum + 10]; carry = '-0'; }
+            else { res = DEC_TO_SYM[sum]; }
+            ADD_TABLE[`${a}|${b}`] = {res, carry};
+            let diff = sa - sb, borrow = '∅';
+            if(diff > 10) { res = DEC_TO_SYM[diff - 10]; borrow = '+0'; }
+            else if(diff < -10) { res = DEC_TO_SYM[diff + 10]; borrow = '-0'; }
+            else { res = DEC_TO_SYM[diff]; }
+            SUB_TABLE[`${a}|${b}`] = {res, borrow};
+        }
+    })();
+
+    function mulNits(a, b) {
+        let prod = SYM_TO_DEC[a] * SYM_TO_DEC[b];
+        let unitVal = prod % 10, tensVal = Math.trunc(prod / 10);
+        let unit = DEC_TO_SYM[unitVal], tens = tensVal === 0 ? '∅' : DEC_TO_SYM[tensVal];
+        if(prod < 0) {
+            if(unit !== '∅') unit = DEC_TO_SYM[-SYM_TO_DEC[unit]];
+            if(tens !== '∅') tens = DEC_TO_SYM[-SYM_TO_DEC[tens]];
+        }
+        return {unit, tens};
+    }
+
+    function parseNovabene(str) {
+        str = str.trim();
+        if(str === '' || str === '∅') return ['∅'];
+        let syms = [], i = 0, sign = null;
+        while(i < str.length) {
+            let ch = str[i];
+            if(ch === '+' || ch === '-') { sign = ch; i++; }
+            else if(ch === '∅') { syms.push('∅'); sign = null; i++; }
+            else if(ch >= '0' && ch <= '9') {
+                syms.push((sign ? sign : '+') + ch);
+                i++;
+            } else throw new Error('Carattere non valido');
+        }
+        return syms.reverse();
+    }
+
+    // Formattazione compatta: nessun segno per positivi, '0' = cifra 0 (valore 1)
+    function formatNovabene(list) {
+        if(list.length === 0) return '∅';
+        if(list.length === 1 && list[0] === '∅') return '∅';
+        // Normalizza prima di formattare
+        let norm = normalize(list);
+        if(norm.length === 1 && norm[0] === '∅') return '∅';
+        let sign = null;
+        for(let s of norm) if(s !== '∅') { sign = s[0]; break; }
+        if(!sign) return '∅';
+        let rev = [...norm].reverse();
+        let out = (sign === '-') ? '-' : '';
+        for(let s of rev) {
+            if(s === '∅') out += '0';
+            else out += s[1];
+        }
+        return out;
+    }
+
+    function toDecimal(list) {
+        let v = 0, m = 1;
+        for(let s of list) { v += SYM_TO_DEC[s] * m; m *= 10; }
+        return v;
+    }
+
+    function fromDecimal(n) {
+        if(n === 0) return ['∅'];
+        let sign = n > 0 ? '+' : '-', abs = Math.abs(n);
+        let digits = [];
+        while(abs > 0) {
+            let r = abs % 10;
+            if(r === 0) { digits.push(sign === '+' ? '+9' : '-9'); abs = (abs - 10) / 10; }
+            else { digits.push(sign + (r - 1)); abs = (abs - r) / 10; }
+        }
+        return digits;
+    }
+
+    // NORMALIZZAZIONE: elimina ∅ interni e finali
+    function normalize(list) {
+        if(list.length === 0) return ['∅'];
+        let res = [...list];
+        // Rimuovi tutti gli ∅ finali (cifre più significative nulle)
+        while(res.length > 1 && res[res.length-1] === '∅') res.pop();
+        if(res.length === 1 && res[0] === '∅') return ['∅'];
+        // Se c'è un ∅ in posizioni interne (non dovrebbe accadere dopo le operazioni, ma per sicurezza)
+        for(let i = 0; i < res.length; i++) {
+            if(res[i] === '∅' && res.length > 1) {
+                // Convertilo in +9 o -9 e propaga carry -1
+                let sign = null;
+                for(let s of res) if(s !== '∅') { sign = s[0]; break; }
+                if(!sign) return ['∅'];
+                let replacement = (sign === '+') ? '+9' : '-9';
+                res[i] = replacement;
+                let carry = -1;
+                let j = i + 1;
+                while(carry !== 0) {
+                    if(j >= res.length) {
+                        res.push(DEC_TO_SYM[carry]);
+                        carry = 0;
+                    } else {
+                        let val = SYM_TO_DEC[res[j]] + carry;
+                        res[j] = DEC_TO_SYM[val];
+                        carry = 0;
+                    }
+                    j++;
+                }
+                // Ricomincia la normalizzazione perché la lista è cambiata
+                return normalize(res);
+            }
+        }
+        return res;
+    }
+
+    function addLists(A, B) {
+        let max = Math.max(A.length, B.length), res = [], carry = '∅';
+        for(let i=0; i<max; i++) {
+            let a = i<A.length ? A[i] : '∅', b = i<B.length ? B[i] : '∅';
+            let s1 = ADD_TABLE[`${a}|${b}`], s2 = ADD_TABLE[`${s1.res}|${carry}`], c12 = ADD_TABLE[`${s1.carry}|${s2.carry}`];
+            res.push(s2.res); carry = c12.res;
+        }
+        if(carry !== '∅') res.push(carry);
+        return normalize(res);
+    }
+
+    function subLists(A, B) {
+        let max = Math.max(A.length, B.length), res = [], borrow = '∅';
+        for(let i=0; i<max; i++) {
+            let a = i<A.length ? A[i] : '∅', b = i<B.length ? B[i] : '∅';
+            let s1 = SUB_TABLE[`${a}|${b}`], s2 = SUB_TABLE[`${s1.res}|${borrow}`], b12 = ADD_TABLE[`${s1.borrow}|${s2.borrow}`];
+            res.push(s2.res); borrow = b12.res;
+        }
+        return normalize(res);
+    }
+
+    function mulLists(A, B) {
+        let result = ['∅'];
+        for(let i=0; i<A.length; i++) {
+            let row = Array(i).fill('∅'), carry = '∅';
+            for(let j=0; j<B.length; j++) {
+                let {unit, tens} = mulNits(A[i], B[j]);
+                let s1 = ADD_TABLE[`${unit}|${carry}`];
+                row.push(s1.res);
+                carry = ADD_TABLE[`${tens}|${s1.carry}`].res;
+            }
+            if(carry !== '∅') row.push(carry);
+            result = addLists(result, row);
+        }
+        return normalize(result);
+    }
+
+    function divLists(A, B) {
+        let a = toDecimal(A), b = toDecimal(B);
+        if(b === 0) throw new Error('Divisione per zero');
+        return fromDecimal(Math.trunc(a / b));
+    }
+
+    // ==================== TEST ====================
+    async function runAllTests() {
+        const status = document.getElementById('testStatus');
+        const out = document.getElementById('testResults');
+        status.innerText = 'Test in corso...';
+        out.innerHTML = '';
+        await new Promise(r => setTimeout(r,20));
+        let fails = [];
+        // Test di conversione andata/ritorno 0-99
+        for(let x=0; x<=99; x++) {
+            let nov = fromDecimal(x);
+            let dec = toDecimal(nov);
+            if(dec !== x) fails.push({type:'conv', x, got:dec, nov:formatNovabene(nov)});
+        }
+        // Addizione 0-99
+        for(let x=0; x<=99; x++) for(let y=0; y<=99; y++) {
+            let A = fromDecimal(x), B = fromDecimal(y), S = addLists(A,B);
+            if(toDecimal(S) !== x+y) fails.push({op:'+', x, y, exp:x+y, got:toDecimal(S), nov:formatNovabene(S)});
+        }
+        // Moltiplicazione 0-20
+        for(let x=0; x<=20; x++) for(let y=0; y<=20; y++) {
+            let A = fromDecimal(x), B = fromDecimal(y), P = mulLists(A,B);
+            if(toDecimal(P) !== x*y) fails.push({op:'×', x, y, exp:x*y, got:toDecimal(P), nov:formatNovabene(P)});
+        }
+        status.innerText = `Test completati. ${fails.length} fallimenti.`;
+        out.innerHTML = fails.length===0
+            ? '<p class="success">✅ Tutti i test superati! Conversione, addizione e moltiplicazione sono corrette.</p>'
+            : '<p class="error">❌ Fallimenti:</p><table><tr><th>Tipo</th><th>Op</th><th>x</th><th>y</th><th>Atteso</th><th>Ottenuto</th><th>Novabene</th></tr>' +
+              fails.slice(0,10).map(f=>`<tr><td>${f.type||''}</td><td>${f.op||''}</td><td>${f.x||''}</td><td>${f.y||''}</td><td>${f.exp||''}</td><td>${f.got||''}</td><td class="mono">${f.nov||''}</td></tr>`).join('') + '</table>';
+        runManualTests();
+    }
+
+    function runManualTests() {
+        let A1 = parseNovabene(document.getElementById('test1_a').value);
+        let B1 = parseNovabene(document.getElementById('test1_b').value);
+        let R1 = addLists(A1, B1);
+        document.getElementById('test1_res').innerText = formatNovabene(R1) + ' (dec ' + toDecimal(R1) + ')';
+        let A2 = parseNovabene(document.getElementById('test2_a').value);
+        let B2 = parseNovabene(document.getElementById('test2_b').value);
+        let R2 = mulLists(A2, B2);
+        document.getElementById('test2_res').innerText = formatNovabene(R2) + ' (dec ' + toDecimal(R2) + ')';
+        let A3 = parseNovabene(document.getElementById('test3_a').value);
+        let B3 = parseNovabene(document.getElementById('test3_b').value);
+        let R3 = mulLists(A3, B3);
+        document.getElementById('test3_res').innerText = formatNovabene(R3) + ' (dec ' + toDecimal(R3) + ')';
+    }
+
+    function runFreeTest() {
+        let a = document.getElementById('freeA').value;
+        let b = document.getElementById('freeB').value;
+        let op = document.getElementById('freeOp').value;
+        try {
+            let A = parseNovabene(a), B = parseNovabene(b);
+            let R = op==='add'?addLists(A,B):op==='sub'?subLists(A,B):op==='mul'?mulLists(A,B):divLists(A,B);
+            document.getElementById('freeResult').innerText = formatNovabene(R) + ' (dec ' + toDecimal(R) + ')';
+        } catch(e) {
+            document.getElementById('freeResult').innerText = 'Errore';
+        }
+    }
+
+    window.runAllTests = runAllTests;
+    window.runManualTests = runManualTests;
+    window.runFreeTest = runFreeTest;
+    window.onload = () => { runAllTests(); };
+</script>
+</body>
+</html>

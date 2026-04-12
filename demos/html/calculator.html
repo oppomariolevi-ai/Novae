@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Calcolatrice Novabene · Definitiva</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0a0f1a; font-family: 'Segoe UI', 'Roboto', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 12px; }
+        .calculator { max-width: 400px; width: 100%; background: #121826; border-radius: 36px; padding: 24px 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px #2a3a5c inset; color: #e0e8ff; }
+        .display { background: #060a14; border-radius: 24px; padding: 20px 18px; margin-bottom: 24px; border: 1px solid #2a3a5c; box-shadow: inset 0 4px 8px rgba(0,0,0,0.5); }
+        .expression { font-size: 1.3rem; color: #8a9fc0; min-height: 2rem; text-align: right; padding-right: 6px; word-break: break-all; font-family: 'Courier New', monospace; }
+        .result { font-size: 2.4rem; font-weight: bold; color: #b8d0ff; text-align: right; min-height: 3.5rem; word-break: break-all; line-height: 1.2; font-family: 'Courier New', monospace; }
+        .keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .keypad button { background: #1e2638; border: 1px solid #344a6a; color: white; font-size: 1.8rem; font-weight: 600; padding: 16px 0; border-radius: 24px; cursor: pointer; box-shadow: 0 6px 0 #0e131f; transition: 0.05s; font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; }
+        .keypad button.symbol { background: #253250; border-color: #4a6a9a; color: #aad0ff; }
+        .keypad button.operator { background: #2a3a5c; border-color: #6a9ae0; color: white; }
+        .keypad button.equals { background: #3a5a8a; border-color: #8ab8ff; }
+        .keypad button.clear { background: #3a2a3a; border-color: #a06060; color: #ffb0b0; }
+        .keypad button:active { transform: translateY(4px); box-shadow: 0 2px 0 #0e131f; }
+        .note { font-size: 0.75rem; color: #8a9fc0; text-align: center; margin-top: 16px; }
+        .note span { background: #1e2638; padding: 4px 8px; border-radius: 20px; margin: 0 4px; }
+        .error { color: #ff8080; text-align: center; min-height: 20px; margin-top: 8px; font-size: 0.9rem; }
+        @media (max-width: 400px) { .calculator { padding: 16px 12px; } .keypad button { font-size: 1.5rem; padding: 12px 0; } .result { font-size: 2rem; } }
+    </style>
+</head>
+<body>
+<div class="calculator">
+    <div class="display">
+        <div class="expression" id="expressionDisplay">∅</div>
+        <div class="result" id="resultDisplay">∅ (dec 0)</div>
+    </div>
+
+    <div class="keypad">
+        <button onclick="clearAll()" class="clear">AC</button>
+        <button onclick="setOperator('pow')" class="operator" disabled style="opacity:0.5;">^</button>
+        <button onclick="setOperator('sqrt')" class="operator" disabled style="opacity:0.5;">√</button>
+        <button onclick="setOperator('div')" class="operator">÷</button>
+        <button onclick="inputDigit('7')">7</button>
+        <button onclick="inputDigit('8')">8</button>
+        <button onclick="inputDigit('9')">9</button>
+        <button onclick="setOperator('mul')" class="operator">×</button>
+        <button onclick="inputDigit('4')">4</button>
+        <button onclick="inputDigit('5')">5</button>
+        <button onclick="inputDigit('6')">6</button>
+        <button onclick="setOperator('sub')" class="operator">−</button>
+        <button onclick="inputDigit('1')">1</button>
+        <button onclick="inputDigit('2')">2</button>
+        <button onclick="inputDigit('3')">3</button>
+        <button onclick="setOperator('add')" class="operator">+</button>
+        <button onclick="inputSymbol('∅')" class="symbol">∅</button>
+        <button onclick="inputDigit('0')">0</button>
+        <button onclick="inputSymbol('-')" class="symbol">(−)</button>
+        <button onclick="calculate()" class="equals">=</button>
+        <button onclick="backspace()" class="clear">⌫</button>
+        <button onclick="clearEntry()" class="clear">C</button>
+        <div></div><div></div>
+    </div>
+
+    <div class="note">
+        <span>-9 … -0 ∅ +0 … +9</span><br>
+        ⚡ '0' = +0 (valore 1) · ∅ = zero assoluto · (−) per segno negativo
+    </div>
+    <div id="errorMsg" class="error"></div>
+</div>
+
+<script>
+    // ========== MOTORE NOVABENE (INVARIATO) ==========
+    const SYMBOLS = ['-9','-8','-7','-6','-5','-4','-3','-2','-1','-0','∅','+0','+1','+2','+3','+4','+5','+6','+7','+8','+9'];
+    const SYM_TO_DEC = {}; const DEC_TO_SYM = {};
+    (function init() {
+        SYM_TO_DEC['∅'] = 0; DEC_TO_SYM[0] = '∅';
+        for(let d=9; d>=0; d--) { let s = '-'+d, v = -(d+1); SYM_TO_DEC[s] = v; DEC_TO_SYM[v] = s; }
+        for(let d=0; d<=9; d++) { let s = '+'+d, v = d+1; SYM_TO_DEC[s] = v; DEC_TO_SYM[v] = s; }
+    })();
+
+    const ADD_TABLE = {}; const SUB_TABLE = {};
+    (function build() {
+        for(let a of SYMBOLS) for(let b of SYMBOLS) {
+            let sa = SYM_TO_DEC[a], sb = SYM_TO_DEC[b];
+            let sum = sa + sb, carry = '∅', res;
+            if(sum > 10) { res = DEC_TO_SYM[sum - 10]; carry = '+0'; }
+            else if(sum < -10) { res = DEC_TO_SYM[sum + 10]; carry = '-0'; }
+            else { res = DEC_TO_SYM[sum]; }
+            ADD_TABLE[`${a}|${b}`] = {res, carry};
+            let diff = sa - sb, borrow = '∅';
+            if(diff > 10) { res = DEC_TO_SYM[diff - 10]; borrow = '+0'; }
+            else if(diff < -10) { res = DEC_TO_SYM[diff + 10]; borrow = '-0'; }
+            else { res = DEC_TO_SYM[diff]; }
+            SUB_TABLE[`${a}|${b}`] = {res, borrow};
+        }
+    })();
+
+    function mulNits(a, b) {
+        let prod = SYM_TO_DEC[a] * SYM_TO_DEC[b];
+        let unitVal = prod % 10, tensVal = Math.trunc(prod / 10);
+        let unit = DEC_TO_SYM[unitVal], tens = tensVal === 0 ? '∅' : DEC_TO_SYM[tensVal];
+        if(prod < 0) {
+            if(unit !== '∅') unit = DEC_TO_SYM[-SYM_TO_DEC[unit]];
+            if(tens !== '∅') tens = DEC_TO_SYM[-SYM_TO_DEC[tens]];
+        }
+        return {unit, tens};
+    }
+
+    function toNitList(str) {
+        str = str.trim();
+        if(str === '' || str === '∅') return ['∅'];
+        if(str === '0') return ['+0'];
+        let syms = [], i = 0, sign = null;
+        while(i < str.length) {
+            let ch = str[i];
+            if(ch === '+' || ch === '-') { sign = ch; i++; }
+            else if(ch === '∅') { syms.push('∅'); sign = null; i++; }
+            else if(ch >= '0' && ch <= '9') {
+                syms.push((sign ? sign : '+') + ch);
+                i++;
+            } else throw new Error('Carattere non valido');
+        }
+        return syms.reverse();
+    }
+
+    function formatNovabene(list) {
+        if(list.length === 0) return '∅';
+        if(list.length === 1 && list[0] === '∅') return '∅';
+        let norm = normalize(list);
+        if(norm.length === 1 && norm[0] === '∅') return '∅';
+        let sign = null;
+        for(let s of norm) if(s !== '∅') { sign = s[0]; break; }
+        if(!sign) return '∅';
+        let rev = [...norm].reverse();
+        let out = (sign === '-') ? '-' : '';
+        for(let s of rev) out += (s === '∅') ? '0' : s[1];
+        return out;
+    }
+
+    function toDecimal(list) { let v=0, m=1; for(let s of list) { v += SYM_TO_DEC[s]*m; m*=10; } return v; }
+
+    function normalize(list) {
+        let res = [...list];
+        while(res.length>1 && res[res.length-1]==='∅') res.pop();
+        if(res.length===1 && res[0]==='∅') return ['∅'];
+        for(let i=0; i<res.length; i++) {
+            if(res[i]==='∅' && res.length>1) {
+                let sign = null;
+                for(let s of res) if(s!=='∅') { sign=s[0]; break; }
+                if(!sign) return ['∅'];
+                let repl = (sign==='+') ? '+9' : '-9';
+                res[i] = repl;
+                let carry = -1, j = i+1;
+                while(carry!==0) {
+                    if(j>=res.length) { res.push(DEC_TO_SYM[carry]); carry=0; }
+                    else { let val = SYM_TO_DEC[res[j]] + carry; res[j] = DEC_TO_SYM[val]; carry=0; }
+                    j++;
+                }
+                return normalize(res);
+            }
+        }
+        return res;
+    }
+
+    function addLists(A,B) {
+        let max = Math.max(A.length, B.length), res = [], carry = '∅';
+        for(let i=0; i<max; i++) {
+            let a = i<A.length ? A[i] : '∅', b = i<B.length ? B[i] : '∅';
+            let s1 = ADD_TABLE[`${a}|${b}`], s2 = ADD_TABLE[`${s1.res}|${carry}`], c12 = ADD_TABLE[`${s1.carry}|${s2.carry}`];
+            res.push(s2.res); carry = c12.res;
+        }
+        if(carry!=='∅') res.push(carry);
+        return normalize(res);
+    }
+
+    function subLists(A,B) {
+        let max = Math.max(A.length, B.length), res = [], borrow = '∅';
+        for(let i=0; i<max; i++) {
+            let a = i<A.length ? A[i] : '∅', b = i<B.length ? B[i] : '∅';
+            let s1 = SUB_TABLE[`${a}|${b}`], s2 = SUB_TABLE[`${s1.res}|${borrow}`], b12 = ADD_TABLE[`${s1.borrow}|${s2.borrow}`];
+            res.push(s2.res); borrow = b12.res;
+        }
+        return normalize(res);
+    }
+
+    function mulLists(A,B) {
+        let decA = toDecimal(A), decB = toDecimal(B);
+        if(decA === 1) return normalize(B);
+        if(decB === 1) return normalize(A);
+        if(decA === 0 || decB === 0) return ['∅'];
+        if(A.length > B.length) [A,B] = [B,A];
+        let result = ['∅'];
+        for(let i=0; i<A.length; i++) {
+            let row = Array(i).fill('∅'), carry = '∅';
+            for(let j=0; j<B.length; j++) {
+                let {unit, tens} = mulNits(A[i], B[j]);
+                let s1 = ADD_TABLE[`${unit}|${carry}`];
+                row.push(s1.res);
+                carry = ADD_TABLE[`${tens}|${s1.carry}`].res;
+            }
+            if(carry!=='∅') row.push(carry);
+            result = addLists(result, row);
+        }
+        return normalize(result);
+    }
+
+    function divLists(A,B) {
+        let a = toDecimal(A), b = toDecimal(B);
+        if(b===0) throw new Error('Divisione per zero');
+        return fromDecimal(Math.trunc(a/b));
+    }
+
+    function fromDecimal(n) {
+        if(n===0) return ['∅'];
+        let sign = n>0 ? '+' : '-', abs = Math.abs(n);
+        let digits = [];
+        while(abs>0) {
+            let r = abs%10;
+            if(r===0) { digits.push(sign==='+' ? '+9' : '-9'); abs = (abs-10)/10; }
+            else { digits.push(sign+(r-1)); abs = (abs-r)/10; }
+        }
+        return digits;
+    }
+
+    // ========== STATO CALCOLATRICE CON ESPRESSIONI A CATENA ==========
+    let currentExpression = '∅';       // stringa mostrata nel display superiore
+    let currentResult = '∅';           // stringa Novabene del risultato corrente
+    let firstOperand = null;           // primo operando (stringa Novabene) quando si preme un operatore
+    let pendingOperator = null;
+    let waitingForSecondOperand = false;
+    let afterEquals = false;           // se true, il prossimo numero sostituisce l'espressione
+
+    const exprDisplay = document.getElementById('expressionDisplay');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const errorDiv = document.getElementById('errorMsg');
+
+    function computeAndFormat(op, aStr, bStr) {
+        let A = toNitList(aStr);
+        let B = toNitList(bStr);
+        let res;
+        switch(op) {
+            case 'add': res = addLists(A,B); break;
+            case 'sub': res = subLists(A,B); break;
+            case 'mul': res = mulLists(A,B); break;
+            case 'div': res = divLists(A,B); break;
+            default: throw new Error('Operatore sconosciuto');
+        }
+        return formatNovabene(res);
+    }
+
+    function updateDisplays() {
+        exprDisplay.innerText = currentExpression;
+        try {
+            let list = toNitList(currentResult);
+            let dec = toDecimal(list);
+            resultDisplay.innerText = currentResult + ' (dec ' + dec + ')';
+        } catch {
+            resultDisplay.innerText = currentResult;
+        }
+        errorDiv.innerText = '';
+    }
+
+    // Valuta l'intera espressione corrente (es. "9 × 0 + 1") da sinistra a destra
+    function evaluateExpression(expr) {
+        // Rimuove spazi multipli e tokenizza
+        let tokens = expr.trim().split(/\s+/);
+        if(tokens.length === 0) return '∅';
+        if(tokens.length === 1) return tokens[0]; // solo un numero
+        
+        let acc = tokens[0];
+        for(let i = 1; i < tokens.length; i += 2) {
+            let opSymbol = tokens[i];
+            let nextVal = tokens[i+1];
+            let op;
+            if(opSymbol === '+') op = 'add';
+            else if(opSymbol === '−') op = 'sub';
+            else if(opSymbol === '×') op = 'mul';
+            else if(opSymbol === '÷') op = 'div';
+            else throw new Error('Operatore non valido');
+            acc = computeAndFormat(op, acc, nextVal);
+        }
+        return acc;
+    }
+
+    function inputDigit(d) {
+        if(afterEquals) {
+            currentExpression = d;
+            afterEquals = false;
+        } else if(waitingForSecondOperand) {
+            currentExpression = currentExpression + d;
+            waitingForSecondOperand = false;
+        } else {
+            if(currentExpression === '∅' && d !== '0') currentExpression = d;
+            else if(currentExpression === '∅' && d === '0') currentExpression = '0';
+            else currentExpression += d;
+        }
+        // Ricalcola il risultato immediato valutando l'espressione corrente
+        try {
+            currentResult = evaluateExpression(currentExpression);
+        } catch(e) {
+            errorDiv.innerText = '⚠️ ' + e.message;
+        }
+        updateDisplays();
+    }
+
+    function inputSymbol(sym) {
+        if(afterEquals) {
+            currentExpression = sym;
+            afterEquals = false;
+        } else if(waitingForSecondOperand) {
+            currentExpression = currentExpression + sym;
+            waitingForSecondOperand = false;
+        } else {
+            if(currentExpression === '∅' && sym !== '∅') currentExpression = sym;
+            else if(currentExpression === '∅' && sym === '∅') currentExpression = '∅';
+            else currentExpression += sym;
+        }
+        try {
+            currentResult = evaluateExpression(currentExpression);
+        } catch(e) {
+            errorDiv.innerText = '⚠️ ' + e.message;
+        }
+        updateDisplays();
+    }
+
+    function setOperator(op) {
+        // Aggiunge l'operatore all'espressione
+        let opSymbol = getOperatorSymbol(op);
+        if(waitingForSecondOperand) {
+            // Sostituisce l'ultimo operatore se era già stato inserito uno
+            let parts = currentExpression.split(' ');
+            parts.pop(); // rimuove l'operatore precedente
+            currentExpression = parts.join(' ') + ' ' + opSymbol + ' ';
+        } else {
+            currentExpression = currentExpression + ' ' + opSymbol + ' ';
+        }
+        pendingOperator = op;
+        waitingForSecondOperand = true;
+        afterEquals = false;
+        // Il risultato rimane quello calcolato finora (prima dell'operatore)
+        updateDisplays();
+    }
+
+    function getOperatorSymbol(op) {
+        switch(op) {
+            case 'add': return '+';
+            case 'sub': return '−';
+            case 'mul': return '×';
+            case 'div': return '÷';
+            default: return '';
+        }
+    }
+
+    function calculate() {
+        try {
+            let res = evaluateExpression(currentExpression);
+            currentExpression = res;
+            currentResult = res;
+            pendingOperator = null;
+            waitingForSecondOperand = false;
+            afterEquals = true;
+        } catch(e) {
+            errorDiv.innerText = '⚠️ ' + e.message;
+        }
+        updateDisplays();
+    }
+
+    function clearEntry() {
+        currentExpression = '∅';
+        currentResult = '∅';
+        pendingOperator = null;
+        waitingForSecondOperand = false;
+        afterEquals = false;
+        updateDisplays();
+    }
+
+    function clearAll() {
+        currentExpression = '∅';
+        currentResult = '∅';
+        firstOperand = null;
+        pendingOperator = null;
+        waitingForSecondOperand = false;
+        afterEquals = false;
+        updateDisplays();
+    }
+
+    function backspace() {
+        if(currentExpression.length > 0 && currentExpression !== '∅') {
+            currentExpression = currentExpression.slice(0, -1).trim();
+            if(currentExpression === '') currentExpression = '∅';
+            if(currentExpression.endsWith('+') || currentExpression.endsWith('−') || currentExpression.endsWith('×') || currentExpression.endsWith('÷')) {
+                waitingForSecondOperand = true;
+            } else {
+                waitingForSecondOperand = false;
+            }
+            try {
+                currentResult = evaluateExpression(currentExpression);
+            } catch(e) {
+                errorDiv.innerText = '⚠️ ' + e.message;
+            }
+        }
+        updateDisplays();
+    }
+
+    window.inputDigit = inputDigit;
+    window.inputSymbol = inputSymbol;
+    window.setOperator = setOperator;
+    window.calculate = calculate;
+    window.clearEntry = clearEntry;
+    window.clearAll = clearAll;
+    window.backspace = backspace;
+
+    updateDisplays();
+</script>
+</body>
+</html>
